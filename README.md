@@ -43,6 +43,9 @@ The output of the tool will be in the folder "output". You will have these files
 
 1- File called "instrumented.c" which has the input file + the goals labels written on the input code.
 
+
+
+
 2- File called "my_goal.txt" has the number of goals.
 
 3- Folder called "goals" has the graph files.
