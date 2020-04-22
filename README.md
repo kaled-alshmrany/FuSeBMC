@@ -31,9 +31,13 @@ In the folder Examples, you can find some C/C++ examples that we used in terms o
 The output of the tool will be in the folder "output". You will have these files as follows:
 
 1- File called "instrumented.c" which has the input file + the goals labels written on the input code.
+
 2- File called "my_goal.txt" has the number of goals.
+
 3- Folder called "goals" has the graph files.
+
 4- Folder called "test-suite" has the XML files.
+
 5- Folder called "goals_out" has the functions files if you used the option "<pathofthefuncations".
 
 
