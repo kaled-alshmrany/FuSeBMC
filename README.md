@@ -23,13 +23,13 @@ Then, you will have the tool under the name "my_instrument"
 my instrument takes 4 parameters:
 
 
-"./my_instrument <inputFile> <outputFile> <goalOutputFile> <pathofthefuncations> <options>"
+./my_instrument <inputFile_> <outputFile_> <goalOutputFile_> <pathofthefuncations_> <options_>
 
 
   Or
 
 
- "./my_instrument <inputFile> <outputFile> <goalOutputFile> <-nogoalProFunc> <options>"
+ "./my_instrument <inputFile_> <outputFile_> <goalOutputFile_> <-nogoalProFunc> <options_>"
  
 
 
