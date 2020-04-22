@@ -4,18 +4,18 @@ A tool based on ESBMC that can label all the goals in the target C code. Also, i
 
  * Requrments to use the tool:
  
- ESBMC 6.2
+        ESBMC 6.2
   
- Clang 6.0
+        Clang 6.0
   
- llvm 6.0.0
+        llvm 6.0.0
 
 <br /><br />
 
 * To compile the tool through the makefile:
 
  
-make clean all.
+      make clean all.
 
 
 Then, you will have the tool under the name "my_instrument"
@@ -25,13 +25,13 @@ Then, you will have the tool under the name "my_instrument"
 * My instrument takes 4 parameters:
 
 
-./my_instrument <inputFile_> <outputFile_> <goalOutputFile_> <pathofthefuncations_> <options_>
+       ./my_instrument <inputFile_> <outputFile_> <goalOutputFile_> <pathofthefuncations_> <options_>
 
 
   Or
 
 
- "./my_instrument <inputFile_> <outputFile_> <goalOutputFile_> <-nogoalProFunc> <options_>"
+       ./my_instrument <inputFile_> <outputFile_> <goalOutputFile_> <-nogoalProFunc> <options_>
  
 
 <br /><br />
@@ -46,15 +46,11 @@ Then, you will have the tool under the name "my_instrument"
 * The output of the tool will be in the folder "output". You will have these files as follows:
 <br />
 
-1- File called "instrumented.c" which has the input file + the goals labels written on the input code.<br />
-<br />
-2- File called "my_goal.txt" has the number of goals.<br />
-<br />
-3- Folder called "goals" has the graph files.<br />
-<br />
-4- Folder called "test-suite" has the XML files.<br />
-<br />
-5- Folder called "goals_out" has the functions files if you used the option "<pathofthefuncations".<br />
+      1- File called "instrumented.c" which has the input file + the goals labels written on the input code.<br />
+      2- File called "my_goal.txt" has the number of goals.<br />
+      3- Folder called "goals" has the graph files.<br />
+      4- Folder called "test-suite" has the XML files.<br />
+      5- Folder called "goals_out" has the functions files if you used the option "<pathofthefuncations".<br />
 
 
 <br /><br /><br />
