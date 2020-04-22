@@ -18,7 +18,7 @@ A tool based on ESBMC that can label all the goals in the target C code. Also, i
       make clean all.
 
 
-Then, you will have the tool under the name "my_instrument"
+      Then, you will have the tool under the name "my_instrument"
 
 <br /><br />
 
@@ -44,7 +44,6 @@ Then, you will have the tool under the name "my_instrument"
 
 
 * The output of the tool will be in the folder "output". You will have these files as follows:
-<br />
 
       1- File called "instrumented.c" which has the input file + the goals labels written on the input code.<br />
       2- File called "my_goal.txt" has the number of goals.<br />
@@ -58,5 +57,5 @@ Then, you will have the tool under the name "my_instrument"
 
 
 
-Note:
+Note:<br />
 The tool is still under testing.
