@@ -22,7 +22,7 @@ A tool based on ESBMC that can label all the goals in the target C code. Also, i
 
 <br /><br />
 
-* My FuSeBMC takes 4 parameters:
+* FuSeBMC takes 4 parameters:
 
 
        ./FuSeBMC <inputFile_> <outputFile_> <goalOutputFile_> <pathofthefuncations_> <options_>
