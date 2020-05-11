@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="utf-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <key id="frontier" attr.name="isFrontierNode" attr.type="boolean" for="node">
+    <default>false</default>
+  </key>
+  <key id="violation" attr.name="isViolationNode" attr.type="boolean" for="node">
+    <default>false</default>
+  </key>
+  <key id="entry" attr.name="isEntryNode" attr.type="boolean" for="node">
+    <default>false</default>
+  </key>
+  <key id="sink" attr.name="isSinkNode" attr.type="boolean" for="node">
+    <default>false</default>
+  </key>
+  <key id="cyclehead" attr.name="cyclehead" attr.type="boolean" for="node">
+    <default>false</default>
+  </key>
+  <key id="sourcecodelang" attr.name="sourcecodeLanguage" attr.type="string" for="graph"/>
+  <key id="programfile" attr.name="programfile" attr.type="string" for="graph"/>
+  <key id="programhash" attr.name="programhash" attr.type="string" for="graph"/>
+  <key id="creationtime" attr.name="creationtime" attr.type="string" for="graph"/>
+  <key id="specification" attr.name="specification" attr.type="string" for="graph"/>
+  <key id="architecture" attr.name="architecture" attr.type="string" for="graph"/>
+  <key id="producer" attr.name="producer" attr.type="string" for="graph"/>
+  <key id="sourcecode" attr.name="sourcecode" attr.type="string" for="edge"/>
+  <key id="startline" attr.name="startline" attr.type="int" for="edge"/>
+  <key id="startoffset" attr.name="startoffset" attr.type="int" for="edge"/>
+  <key id="control" attr.name="control" attr.type="string" for="edge"/>
+  <key id="invariant" attr.name="invariant" attr.type="string" for="node"/>
+  <key id="invariant.scope" attr.name="invariant.scope" attr.type="string" for="node"/>
+  <key id="assumption" attr.name="assumption" attr.type="string" for="edge"/>
+  <key id="assumption.scope" attr.name="assumption" attr.type="string" for="edge"/>
+  <key id="assumption.resultfunction" attr.name="assumption.resultfunction" attr.type="string" for="edge"/>
+  <key id="enterFunction" attr.name="enterFunction" attr.type="string" for="edge"/>
+  <key id="returnFromFunction" attr.name="returnFromFunction" attr.type="string" for="edge"/>
+  <key id="endline" attr.name="endline" attr.type="int" for="edge"/>
+  <key id="endoffset" attr.name="endoffset" attr.type="int" for="edge"/>
+  <key id="threadId" attr.name="threadId" attr.type="string" for="edge"/>
+  <key id="createThread" attr.name="createThread" attr.type="string" for="edge"/>
+  <key id="witness-type" attr.name="witness-type" attr.type="string" for="graph"/>
+  <graph edgedefault="directed">
+    <data key="producer">ESBMC 6.0.0 incr</data>
+    <data key="sourcecodelang">C</data>
+    <data key="architecture">32bit</data>
+    <data key="programfile">./output/instrumented.c</data>
+    <data key="programhash">23e2a0d4e9e2430930ad0278d56c5932a9db9ce3</data>
+    <data key="specification">CHECK( init(main()), LTL(G ! call(__VERIFIER_error())) )</data>
+    <data key="creationtime">2020-05-11T01:09:20.602834</data>
+    <data key="witness-type">violation_witness</data>
+    <node id="N51">
+      <data key="entry">true</data>
+    </node>
+    <node id="N52"/>
+    <edge id="E48" source="N51" target="N52">
+      <data key="enterFunction">main</data>
+      <data key="createThread">0</data>
+    </edge>
+    <node id="N53"/>
+    <edge id="E49" source="N52" target="N53">
+      <data key="startline">39</data>
+      <data key="assumption">n = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N54"/>
+    <edge id="E50" source="N53" target="N54">
+      <data key="startline">44</data>
+      <data key="assumption">x = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N55"/>
+    <edge id="E51" source="N54" target="N55">
+      <data key="startline">48</data>
+      <data key="assumption">set[0] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N56"/>
+    <edge id="E52" source="N55" target="N56">
+      <data key="startline">44</data>
+      <data key="assumption">x = 1;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N57"/>
+    <edge id="E53" source="N56" target="N57">
+      <data key="startline">48</data>
+      <data key="assumption">set[1] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N58"/>
+    <edge id="E54" source="N57" target="N58">
+      <data key="startline">44</data>
+      <data key="assumption">x = 2;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N59"/>
+    <edge id="E55" source="N58" target="N59">
+      <data key="startline">48</data>
+      <data key="assumption">set[2] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N60"/>
+    <edge id="E56" source="N59" target="N60">
+      <data key="startline">44</data>
+      <data key="assumption">x = 3;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N61"/>
+    <edge id="E57" source="N60" target="N61">
+      <data key="startline">48</data>
+      <data key="assumption">set[3] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N62"/>
+    <edge id="E58" source="N61" target="N62">
+      <data key="startline">44</data>
+      <data key="assumption">x = 4;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N63"/>
+    <edge id="E59" source="N62" target="N63">
+      <data key="startline">48</data>
+      <data key="assumption">set[4] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N64"/>
+    <edge id="E60" source="N63" target="N64">
+      <data key="startline">44</data>
+      <data key="assumption">x = 5;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N65"/>
+    <edge id="E61" source="N64" target="N65">
+      <data key="startline">48</data>
+      <data key="assumption">set[5] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N66"/>
+    <edge id="E62" source="N65" target="N66">
+      <data key="startline">44</data>
+      <data key="assumption">x = 6;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N67"/>
+    <edge id="E63" source="N66" target="N67">
+      <data key="startline">48</data>
+      <data key="assumption">set[6] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N68"/>
+    <edge id="E64" source="N67" target="N68">
+      <data key="startline">44</data>
+      <data key="assumption">x = 7;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N69"/>
+    <edge id="E65" source="N68" target="N69">
+      <data key="startline">48</data>
+      <data key="assumption">set[7] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N70"/>
+    <edge id="E66" source="N69" target="N70">
+      <data key="startline">44</data>
+      <data key="assumption">x = 8;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N71"/>
+    <edge id="E67" source="N70" target="N71">
+      <data key="startline">48</data>
+      <data key="assumption">set[8] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N72"/>
+    <edge id="E68" source="N71" target="N72">
+      <data key="startline">44</data>
+      <data key="assumption">x = 9;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N73"/>
+    <edge id="E69" source="N72" target="N73">
+      <data key="startline">48</data>
+      <data key="assumption">set[9] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N74"/>
+    <edge id="E70" source="N73" target="N74">
+      <data key="startline">44</data>
+      <data key="assumption">x = 10;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N75"/>
+    <edge id="E71" source="N74" target="N75">
+      <data key="startline">48</data>
+      <data key="assumption">set[10] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N76"/>
+    <edge id="E72" source="N75" target="N76">
+      <data key="startline">44</data>
+      <data key="assumption">x = 11;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N77"/>
+    <edge id="E73" source="N76" target="N77">
+      <data key="startline">48</data>
+      <data key="assumption">set[11] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N78"/>
+    <edge id="E74" source="N77" target="N78">
+      <data key="startline">44</data>
+      <data key="assumption">x = 12;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N79"/>
+    <edge id="E75" source="N78" target="N79">
+      <data key="startline">48</data>
+      <data key="assumption">set[12] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N80"/>
+    <edge id="E76" source="N79" target="N80">
+      <data key="startline">44</data>
+      <data key="assumption">x = 13;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N81"/>
+    <edge id="E77" source="N80" target="N81">
+      <data key="startline">48</data>
+      <data key="assumption">set[13] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N82"/>
+    <edge id="E78" source="N81" target="N82">
+      <data key="startline">44</data>
+      <data key="assumption">x = 14;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N83"/>
+    <edge id="E79" source="N82" target="N83">
+      <data key="startline">48</data>
+      <data key="assumption">set[14] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N84"/>
+    <edge id="E80" source="N83" target="N84">
+      <data key="startline">44</data>
+      <data key="assumption">x = 15;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N85"/>
+    <edge id="E81" source="N84" target="N85">
+      <data key="startline">48</data>
+      <data key="assumption">set[15] = 0;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N86"/>
+    <edge id="E82" source="N85" target="N86">
+      <data key="startline">44</data>
+      <data key="assumption">x = 16;</data>
+      <data key="threadId">0</data>
+    </edge>
+    <node id="N87">
+      <data key="violation">true</data>
+    </node>
+    <edge id="E83" source="N86" target="N87">
+      <data key="startline">44</data>
+      <data key="threadId">0</data>
+    </edge>
+  </graph>
+</graphml>
