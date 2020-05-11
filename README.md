@@ -1,4 +1,4 @@
-# my_instrument
+# FuSeBMC
 A tool based on ESBMC that can label all the goals in the target C code. Also, it can produce the graph file and then the XML files that we can use later to get the counterexamples values.
   <br /><br />  <br />
 
@@ -18,20 +18,20 @@ A tool based on ESBMC that can label all the goals in the target C code. Also, i
       make clean all.
 
 
-      Then, you will have the tool under the name "my_instrument"
+      Then, you will have the tool under the name "FuSeBMC"
 
 <br /><br />
 
-* My instrument takes 4 parameters:
+* My FuSeBMC takes 4 parameters:
 
 
-       ./my_instrument <inputFile_> <outputFile_> <goalOutputFile_> <pathofthefuncations_> <options_>
+       ./FuSeBMC <inputFile_> <outputFile_> <goalOutputFile_> <pathofthefuncations_> <options_>
 
 
   Or
 
 
-       ./my_instrument <inputFile_> <outputFile_> <goalOutputFile_> <-nogoalProFunc> <options_>
+       ./FuSeBMC <inputFile_> <outputFile_> <goalOutputFile_> <-nogoalProFunc> <options_>
  
 
 <br /><br />
