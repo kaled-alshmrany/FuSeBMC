@@ -2,9 +2,8 @@
 #ESBMC=/home/kaled/sdb1/esbmc+python-v6.0.0-linux-static-64/bin/esbmc
 ESBMC=/home/kaled/Desktop/esbmc-v6.0/bin/esbmc
 FILE=/home/kaled/Desktop/2020-my-projects/experment_10_02_2020/uFTP/main.c
-
 #FILE=./examples/a.cpp
-#ESBMC_PARAMS='-I/home/kaled/Desktop/experment_10_02_2020/uFTPP -I/home/kaled/Desktop/experment_10_02_2020/uFTP/library --no-div-by-zero-check --force-malloc-success --state-hashing --no-align-check --k-step 5 --floatbv --no-slice --show-cex --unwind 4 --max-k-step 10 --context-bound 2 --32 --incremental-bmc --no-pointer-check --no-bounds-check --interval-analysis --no-slice '
+#ESBMC_PARAMS='-I/home/kaled/sdb1/uFTP -I/home/kaled/sdb1/uFTP/library --no-div-by-zero-check --force-malloc-success --state-hashing --no-align-check --k-step 5 --floatbv --no-slice --show-cex --unwind 4 --max-k-step 10 --context-bound 2 --32 --incremental-bmc --no-pointer-check --no-bounds-check --interval-analysis --no-slice '
 ESBMC_PARAMS='-I/home/kaled/Desktop/2020-my-projects/experment_10_02_2020/uFTP -I/home/kaled/Desktop/2020-my-projects/experment_10_02_2020/uFTP/library --no-div-by-zero-check --force-malloc-success --state-hashing --no-align-check --k-step 5 --floatbv --show-cex --unwind 4 --max-k-step 10 --context-bound 2 --32 --incremental-bmc --no-pointer-check --no-bounds-check --interval-analysis --no-slice'
 INSTRUMENT_PARAMS='-I/home/kaled/Desktop/2020-my-projects/experment_10_02_2020/uFTP/main.c -I/home/kaled/Desktop/2020-my-projects/experment_10_02_2020/uFTP/main.c/library -DOPENSSL_ENABLED'
 #FILE=$1
@@ -16,7 +15,7 @@ mkdir ./output/goals_out
 mkdir ./output/test-suite
 
 #-nogoalProFunc
-./FuSeBMC $FILE ./output/instrumented.c ./output/my_goals.txt ./output/goals_out $INSTRUMENT_PARAMS
+./my_instrument $FILE ./output/instrumented.c ./output/my_goals.txt ./output/goals_out $INSTRUMENT_PARAMS
 
 
 func_arr=(
