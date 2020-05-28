@@ -1,13 +1,13 @@
 called: clang++
-	/home/hosam/sdb1/FuSeBMC
+	/home/kaled/Desktop/2020-my-projects/21-24.05.2020/FuSeBMC_v2.0/my_instrument
 	clang++
 	-g
 	-lesbmc
 	-o
-	FuSeBMC
+	my_instrument
 
 called: /usr/bin/ld
-	/home/hosam/sdb1/FuSeBMC
+	/home/kaled/Desktop/2020-my-projects/21-24.05.2020/FuSeBMC_v2.0/my_instrument
 	/usr/bin/ld
 	--eh-frame-hdr
 	-m
@@ -15,7 +15,7 @@ called: /usr/bin/ld
 	-dynamic-linker
 	/lib64/ld-linux-x86-64.so.2
 	-o
-	FuSeBMC
+	my_instrument
 	/usr/bin/../lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crt1.o
 	/usr/bin/../lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o
 	/usr/bin/../lib/gcc/x86_64-linux-gnu/9/crtbegin.o
@@ -28,7 +28,7 @@ called: /usr/bin/ld
 	-L/usr/lib/../lib64
 	-L/usr/lib/x86_64-linux-gnu/../../lib64
 	-L/usr/bin/../lib/gcc/x86_64-linux-gnu/9/../../..
-	-L/home/hosam/clang_base/bin/../lib
+	-L/home/kaled/Downloads/clang_base/bin../lib
 	-L/lib
 	-L/usr/lib
 	-lesbmc

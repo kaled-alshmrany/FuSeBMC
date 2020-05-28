@@ -9,6 +9,21 @@
     </data>
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
-        <group/>
+        <group>
+            <file>file:/home/hosam/sdb1/my_instrument/examples/prob.c</file>
+            <file>file:/home/hosam/sdb1/my_instrument/www.c</file>
+            <file>file:/home/hosam/sdb1/my_instrument/examples/relax1.c</file>
+            <file>file:/home/hosam/sdb1/my_instrument/include/my_instrument.h</file>
+            <file>file:/home/hosam/sdb1/my_instrument/examples/e.c</file>
+            <file>file:/home/hosam/sdb1/my_instrument/examples/a.c</file>
+            <file>file:/home/hosam/sdb1/my_instrument/include/TestVisitor.h</file>
+            <file>file:/home/hosam/sdb1/my_instrument/examples/e_out.c</file>
+            <file>file:/home/hosam/sdb1/my_instrument/include/MyOptions.h</file>
+            <file>file:/home/hosam/sdb1/my_instrument/Makefile</file>
+            <file>file:/home/hosam/sdb1/my_instrument/src/MyVisitor.cpp</file>
+            <file>file:/home/hosam/sdb1/my_instrument/src/my_instrument.cpp</file>
+            <file>file:/home/hosam/sdb1/my_instrument/src/TestVisitor.cpp</file>
+            <file>file:/home/hosam/sdb1/my_instrument/include/MyVisitor.h</file>
+        </group>
     </open-files>
 </project-private>

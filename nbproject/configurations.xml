@@ -2,11 +2,16 @@
 <configurationDescriptor version="100">
   <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
     <df root="." name="0">
+      <df name="examples">
+        <in>d.cpp</in>
+      </df>
       <df name="src">
         <in>GoalCounter.cpp</in>
         <in>MyHolder.cpp</in>
+        <in>MyOptions.cpp</in>
         <in>MyVisitor.cpp</in>
-        <in>FuSeBMC.cpp</in>
+        <in>TestVisitor.cpp</in>
+        <in>my_instrument.cpp</in>
       </df>
       <df name="src_old">
         <in>tmp001.cpp</in>
@@ -45,41 +50,51 @@
           <buildCommandWorkingDir>.</buildCommandWorkingDir>
           <buildCommand>${MAKE} -f Makefile</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
-          <executablePath>FuSeBMC</executablePath>
-          <ccTool>
-            <incDir>
-              <pElem>include</pElem>
-              <pElem>../../clang_base/include</pElem>
-            </incDir>
-            <preprocessorList>
-              <Elem>PIC</Elem>
-              <Elem>_DEBUG</Elem>
-              <Elem>_GNU_SOURCE</Elem>
-              <Elem>__STDC_CONSTANT_MACROS</Elem>
-              <Elem>__STDC_FORMAT_MACROS</Elem>
-              <Elem>__STDC_LIMIT_MACROS</Elem>
-            </preprocessorList>
-          </ccTool>
+          <executablePath>my_instrument</executablePath>
         </makeTool>
         <preBuild>
           <preBuildCommandWorkingDir>.</preBuildCommandWorkingDir>
           <preBuildCommand></preBuildCommand>
         </preBuild>
       </makefileType>
+      <item path="examples/d.cpp" ex="false" tool="1" flavor2="11">
+        <ccTool flags="1">
+        </ccTool>
+      </item>
       <folder path="0/src">
         <ccTool>
           <incDir>
+            <pElem>include</pElem>
+            <pElem>../../clang_base/include</pElem>
             <pElem>/mnt/sda2/llvm-6.0.0/include</pElem>
             <pElem>.</pElem>
           </incDir>
+          <preprocessorList>
+            <Elem>MYDEBUG</Elem>
+            <Elem>PIC</Elem>
+            <Elem>_GNU_SOURCE</Elem>
+            <Elem>__STDC_CONSTANT_MACROS</Elem>
+            <Elem>__STDC_FORMAT_MACROS</Elem>
+            <Elem>__STDC_LIMIT_MACROS</Elem>
+          </preprocessorList>
         </ccTool>
       </folder>
       <folder path="0/src_old">
         <ccTool>
           <incDir>
+            <pElem>include</pElem>
+            <pElem>../../clang_base/include</pElem>
             <pElem>/mnt/sda2/llvm-6.0.0.src/include</pElem>
             <pElem>.</pElem>
           </incDir>
+          <preprocessorList>
+            <Elem>PIC</Elem>
+            <Elem>_DEBUG</Elem>
+            <Elem>_GNU_SOURCE</Elem>
+            <Elem>__STDC_CONSTANT_MACROS</Elem>
+            <Elem>__STDC_FORMAT_MACROS</Elem>
+            <Elem>__STDC_LIMIT_MACROS</Elem>
+          </preprocessorList>
         </ccTool>
       </folder>
       <item path="src/GoalCounter.cpp" ex="false" tool="1" flavor2="8">
@@ -90,11 +105,19 @@
         <ccTool flags="0">
         </ccTool>
       </item>
+      <item path="src/MyOptions.cpp" ex="false" tool="1" flavor2="8">
+        <ccTool flags="0">
+        </ccTool>
+      </item>
       <item path="src/MyVisitor.cpp" ex="false" tool="1" flavor2="8">
         <ccTool flags="0">
         </ccTool>
       </item>
-      <item path="src/FuSeBMC.cpp" ex="false" tool="1" flavor2="8">
+      <item path="src/TestVisitor.cpp" ex="false" tool="1" flavor2="8">
+        <ccTool flags="0">
+        </ccTool>
+      </item>
+      <item path="src/my_instrument.cpp" ex="false" tool="1" flavor2="8">
         <ccTool flags="0">
         </ccTool>
       </item>

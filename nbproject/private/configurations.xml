@@ -3,17 +3,38 @@
   <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
     <df root="." name="0">
       <df name="examples">
-        <df name="goals_out">
+        <df name="a">
+          <df name="b">
+            <in>aa.c</in>
+          </df>
         </df>
-        <in>a.cpp</in>
+        <in>a.c</in>
+        <in>a_out.c</in>
+        <in>array_example.c</in>
         <in>b.cpp</in>
-        <in>uftp_out.c</in>
+        <in>c.cpp</in>
+        <in>c_out.cpp</in>
+        <in>c_outt.cpp</in>
+        <in>d.c</in>
+        <in>d.cpp</in>
+        <in>d_out.cpp</in>
+        <in>e.c</in>
+        <in>e_out.c</in>
+        <in>err.c</in>
+        <in>err.c.i</in>
+        <in>prob.c</in>
+        <in>rangesum.c</in>
+        <in>relax1.c</in>
+        <in>test-coverages.c</in>
+        <in>yy.c</in>
       </df>
       <df name="include">
         <in>GoalCounter.h</in>
         <in>MyHolder.h</in>
+        <in>MyOptions.h</in>
         <in>MyVisitor.h</in>
-        <in>FuSeBMC.h</in>
+        <in>TestVisitor.h</in>
+        <in>my_instrument.h</in>
       </df>
       <df name="include_old">
         <in>MyASTConsumer.h</in>
@@ -22,19 +43,22 @@
       </df>
       <df name="obj">
       </df>
-      <df name="output">
-      </df>
       <df name="src">
         <in>GoalCounter.cpp</in>
         <in>MyHolder.cpp</in>
+        <in>MyOptions.cpp</in>
         <in>MyVisitor.cpp</in>
-        <in>FuSeBMC.cpp</in>
+        <in>TestVisitor.cpp</in>
+        <in>my_instrument.cpp</in>
       </df>
       <df name="src_old">
         <in>MyFrontendAction.cpp</in>
-        <in>FuSeBMC.cpp</in>
+        <in>my_instrument.cpp</in>
         <in>tmp001.cpp</in>
       </df>
+      <in>a123.c</in>
+      <in>inst_out_78877878.c</in>
+      <in>www.c</in>
     </df>
     <itemPath>notes.txt</itemPath>
   </logicalFolder>
@@ -63,8 +87,14 @@
         <gdb_interceptlist>
           <gdbinterceptoptions gdb_all="false" gdb_unhandled="true" gdb_unexpected="true"/>
         </gdb_interceptlist>
+        <gdb_signals>
+        </gdb_signals>
         <gdb_options>
           <DebugOptions>
+            <option name="gdb_source_dirs" value="src"/>
+            <option name="debug_command"
+                    value="./my_instrument --input examples/prob.c  --add-else --output examples/prob_out.c --add-else"/>
+            <option name="debug_dir" value="/home/kaled/sdb1/my_instrument/."/>
           </DebugOptions>
         </gdb_options>
         <gdb_buildfirst gdb_buildfirst_overriden="false" gdb_buildfirst_old="false"/>
