@@ -470,9 +470,6 @@ obj/MyVisitor.o: src/MyVisitor.cpp \
   /home/kaled/Downloads/clang_base/include/clang/Rewrite/Core/DeltaTree.h \
   /home/kaled/Downloads/clang_base/include/clang/Rewrite/Core/RewriteRope.h \
   /home/kaled/Downloads/clang_base/include/clang/Rewrite/Frontend/Rewriters.h \
-  /usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/sstream \
-  /usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/bits/sstream.tcc \
-  /usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/iostream \
   /home/kaled/Downloads/clang_base/include/clang/AST/ASTConsumer.h \
   /home/kaled/Downloads/clang_base/include/clang/Frontend/CompilerInstance.h \
   /home/kaled/Downloads/clang_base/include/clang/Frontend/CompilerInvocation.h \
@@ -496,7 +493,11 @@ obj/MyVisitor.o: src/MyVisitor.cpp \
   /home/kaled/Downloads/clang_base/include/llvm/Option/OptSpecifier.h \
   /home/kaled/Downloads/clang_base/include/clang/Parse/ParseAST.h \
   /home/kaled/Downloads/clang_base/include/clang/AST/ParentMap.h \
-  include/MyHolder.h include/MyVisitor.h include/GoalCounter.h
+  /usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/sstream \
+  /usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/bits/sstream.tcc \
+  /usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/iostream \
+  include/MyHolder.h include/MyVisitor.h include/my_instrument.h \
+  include/GoalCounter.h include/MyOptions.h
 
 /home/kaled/Downloads/clang_base/include/clang/AST/RecursiveASTVisitor.h:
 
@@ -1466,12 +1467,6 @@ obj/MyVisitor.o: src/MyVisitor.cpp \
 
 /home/kaled/Downloads/clang_base/include/clang/Rewrite/Frontend/Rewriters.h:
 
-/usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/sstream:
-
-/usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/bits/sstream.tcc:
-
-/usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/iostream:
-
 /home/kaled/Downloads/clang_base/include/clang/AST/ASTConsumer.h:
 
 /home/kaled/Downloads/clang_base/include/clang/Frontend/CompilerInstance.h:
@@ -1518,8 +1513,18 @@ obj/MyVisitor.o: src/MyVisitor.cpp \
 
 /home/kaled/Downloads/clang_base/include/clang/AST/ParentMap.h:
 
+/usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/sstream:
+
+/usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/bits/sstream.tcc:
+
+/usr/lib/gcc/x86_64-linux-gnu/8/../../../../include/c++/8/iostream:
+
 include/MyHolder.h:
 
 include/MyVisitor.h:
 
+include/my_instrument.h:
+
 include/GoalCounter.h:
+
+include/MyOptions.h:
