@@ -3,7 +3,6 @@
 ESBMC=/home/kaled/Desktop/ESBMC-6.2.0-Linux/bin/esbmc
 #FILE=/home/kaled/sdb1/uFTP/main.c
 FILE=/home/kaled/Desktop/2020-my-projects/16.04.2020/FuSeBMC/examples/a.c
-
 PARAMS='-I/home/kaled/Desktop/experment_10_02_2020/uFTP -I/home/kaled/Desktop/experment_10_02_2020/uFTP/library --no-div-by-zero-check --force-malloc-success --state-hashing --no-align-check --k-step 5 --floatbv --no-slice --show-cex --unwind 4 --max-k-step 10 --context-bound 2 --32 --incremental-bmc --no-pointer-check --no-bounds-check --interval-analysis --no-slice '
 #FILE=$1
 mypwd=$(pwd)
@@ -16,7 +15,7 @@ mkdir ./output/test-suite
 #bin/condtest --spec tool_templates/coverage-branches.prp --testers cpa-tiger  --timelimit-testers 300 --no-cycle --debug $FILE
 #bin/condtest --spec tool_templates/coverage-branches.prp --debug $FILE
 #-nogoalProFunc
-./FuSeBMC $FILE ./output/instrumented.c ./output/my_goals.txt -nogoalProFunc
+./my_instrument $FILE ./output/instrumented.c ./output/my_goals.txt -nogoalProFunc
 ARCH='32'
 PROPERTY_FILE=p_reach
 #"kinduction", "falsi", "incr"
