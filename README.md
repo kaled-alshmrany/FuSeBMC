@@ -18,20 +18,20 @@ A tool based on ESBMC that can label all the goals in the target C code. Also, i
       make clean all.
 
 
-      Then, you will have the tool under the name "FuSeBMC"
+      Then, you will have the tool under the name "my_instrument"
 
 <br /><br />
 
 * FuSeBMC takes 4 parameters:
 
 
-       ./FuSeBMC <inputFile_> <outputFile_> <goalOutputFile_> <pathofthefuncations_> <options_>
+       ./my_instrument <inputFile_> <outputFile_> <goalOutputFile_> <pathofthefuncations_> <options_>
 
 
   Or
 
 
-       ./FuSeBMC <inputFile_> <outputFile_> <goalOutputFile_> <-nogoalProFunc> <options_>
+       ./my_instrument <inputFile_> <outputFile_> <goalOutputFile_> <-nogoalProFunc> <options_>
  
 
 <br /><br />
@@ -43,14 +43,18 @@ A tool based on ESBMC that can label all the goals in the target C code. Also, i
 
 
 
-* The output of the tool will be in the folder "output". You will have these files as follows:
+* The output of the tool will be in the folder "my_wrapper/my_instrument_outpt". You will have these files as follows:
 
       1- File called "instrumented.c" which has the input file + the goals labels written on the input code.<br />
       2- File called "my_goal.txt" has the number of goals.<br />
       3- Folder called "goals" has the graph files.<br />
-      4- Folder called "test-suite" has the XML files.<br />
-      5- Folder called "goals_out" has the functions files if you used the option "<pathofthefuncations".<br />
+      4- Folder called "goals_out" has the functions files if you used the option "<pathofthefuncations".<br />
 
+<br /><br /><br />
+
+* Other outputs of the tool will be in the folder "my_wrapper". You will have these files as follows:
+      1- Folder called "test-suite" has the XML files.<br />
+      2- Folder called "test-suite.zip" to be used for the tool TestCov.<br />
 
 <br /><br /><br />
 
