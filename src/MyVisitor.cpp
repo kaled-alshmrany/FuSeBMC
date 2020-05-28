@@ -1,7 +1,6 @@
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/Basic/SourceManager.h>
 #include <clang/Frontend/ASTUnit.h>
-
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/AST/Stmt.h>
@@ -12,13 +11,6 @@
 #include <clang/Rewrite/Core/Rewriter.h>
 #include <clang/Rewrite/Frontend/Rewriters.h>
 #include <clang/Basic/SourceManager.h>
-
-#include <cstdio>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <iostream>
-
 #include <clang/AST/ASTConsumer.h>
 #include <clang/Basic/FileManager.h>
 #include <clang/Basic/SourceManager.h>
@@ -33,34 +25,61 @@
 #include <llvm/Support/raw_ostream.h>
 #include <clang/Lex/Token.h>
 #include <clang/AST/ParentMap.h>
+
+#include <cstdio>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <iostream>
+
 #include <MyHolder.h>
 #include <MyVisitor.h>
 #include <GoalCounter.h>
-
+#include <MyOptions.h>
+#include <my_instrument.h>
 //#include <clang/ASTMatchers/ASTMatchFinder.h>
 //#include <clang/ASTMatchers/ASTMatchers.h>
 
 using namespace clang;
-
-bool msutPrint_AST = false;
+extern MyOptions * myOptions;
+#ifdef MYDEBUG
+    int V_counter =0 ;
+    #define GET_LINE() "\n/*B_"+std::to_string(__LINE__)+"_("+ std::to_string(++V_counter) +")"+"*/\n"
+    #define GET_LINE_E() "\n/*E_"+std::to_string(__LINE__)+"_("+ std::to_string(V_counter) +")"+"*/\n"
+#else
+    #define GET_LINE() std::string("")
+    #define GET_LINE_E() std::string("")
+#endif
 
 bool MyVisitor::TraverseDecl(Decl* decl)
   {
       //llvm::outs() << "TTTTTTTT";
       //decl->dumpColor();
-      if(decl->isFunctionOrFunctionTemplate()) 
-      {
-          FunctionDecl *func = decl->getAsFunction();
+      //if(decl->isFunctionOrFunctionTemplate()) 
+      //{
+       //   FunctionDecl *func = decl->getAsFunction();
           //const SourceManager &SM = *TheHolder.SourceManager;
           //const ASTContext *Context = TheHolder.ASTContext;
           
-          if(func->hasBody())
-          {
-              Stmt * body =func->getBody();
-              TheRewriter.InsertTextAfter(body->getLocStart().getLocWithOffset(1),"\r\n" + GoalCounter::getInstance().GetNewGoalForFunc(func->getNameAsString()));
-          }
-          
-      }
+          //16.05.2020
+          //if(func->hasBody())
+          //{
+           //   Stmt * body =func->getBody();
+            //  for (Stmt::child_iterator i = body->child_begin(), e = body->child_end(); i != e; ++i)
+             // {
+             //     Stmt *currStmt = *i;
+              //    if(isa<ReturnStmt>(currStmt))
+               //   {
+                //      ReturnStmt * retStmt =cast<ReturnStmt>(currStmt);
+                      //std::cout << "BEGIN STMMT" << std::endl;
+                      //retStmt->dumpColor();
+                      //std::cout << "END STMMT" << std::endl;
+                //      TheRewriter.InsertTextBefore(retStmt->getLocStart().getLocWithOffset(0) ,"/*my return goal*/"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"");
+                //  }
+              //}
+              //TheRewriter.InsertTextAfter(body->getLocStart().getLocWithOffset(1),"\r\n" + GoalCounter::getInstance().GetNewGoalForFunc(func->getNameAsString()));
+        //  }
+      //}
       //return true;
       return Base::TraverseDecl(decl);
   }
@@ -74,16 +93,12 @@ bool MyVisitor::TraverseDecl(Decl* decl)
           return tok::NUM_TOKENS;
       return Tok.getKind();
 }
-  /*static SmallVector<const Stmt *, 1> getParentStmts(const Stmt *S,
-                                                   ASTContext *Context) {
+  /*static SmallVector<const Stmt *, 1> getParentStmts(const Stmt *S,ASTContext *Context) {
   SmallVector<const Stmt *, 1> Result;
-
   ASTContext::DynTypedNodeList Parents = Context->getParents(*S);
-
-  SmallVector<ast_type_traits::DynTypedNode, 1> NodesToProcess(Parents.begin(),
-                                                               Parents.end());
-
-  while (!NodesToProcess.empty()) {
+  SmallVector<ast_type_traits::DynTypedNode, 1> NodesToProcess(Parents.begin(),Parents.end());
+  while (!NodesToProcess.empty())
+  {
     ast_type_traits::DynTypedNode Node = NodesToProcess.back();
     NodesToProcess.pop_back();
 
@@ -94,11 +109,11 @@ bool MyVisitor::TraverseDecl(Decl* decl)
       NodesToProcess.append(Parents.begin(), Parents.end());
     }
   }
-
   return Result;
 }
   */
-  bool MyVisitor::checkStmt(Stmt *S,SourceLocation InitialLoc, SourceLocation EndLocHint) 
+  
+  bool MyVisitor::checkStmt(Stmt *S,SourceLocation InitialLoc, SourceLocation EndLocHint, InstrumentOption instrumentOption) 
   {
   // 1) If there's a corresponding "else" or "while", the check inserts "} "
   // right before that token.
@@ -107,37 +122,34 @@ bool MyVisitor::TraverseDecl(Decl* decl)
   // token, the check inserts "\n}" right before that token.
   // 3) Otherwise the check finds the end of line (possibly after some block or
   // line comments) and inserts "\n}" right before that EOL.
-  if (!S) {
-      return false;
-  }
-  
+  if (!S) return false;  
   //llvm::outs()<< "SSSSSSSSSSSSSS\r\n" << S->getStmtClassName() ;
   //S->dumpColor();
-  
-  
+    
   const SourceManager &SM = *TheHolder.SourceManager;
   ASTContext *Context = TheHolder.ASTContext;
-  
   
    // Already inside braces.
   if(isa<CompoundStmt>(S))
   {
+      //while(x){compound_statment} ; if(x){compund_sttement}
       CompoundStmt * compoundStmt = cast<CompoundStmt>(S);
-      
-      TheRewriter.InsertTextAfter(compoundStmt->getLBracLoc().getLocWithOffset(1),GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString()));
-      return true;
+      if(myOptions->addLabels) TheRewriter.InsertTextAfter(compoundStmt->getLBracLoc().getLocWithOffset(1),GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString()));
+      //16.05.2020
+      if(instrumentOption == InstrumentOption::MUST_INSERT_ELSE && myOptions->addElse)
+          TheRewriter.InsertTextBefore(compoundStmt->getRBracLoc().getLocWithOffset(1),GET_LINE()+"\nelse\n {"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"}"+GET_LINE_E());       
+           
+      return false;
       /*bool isDone=false;
       SourceLocation LParenLoc =forwardSkipWhitespaceAndComments(S->getLocStart(), SM, Context);
       while(!isDone)
       {        
         if (LParenLoc.isInvalid())
         {
-            
             return true;
         }
         tok::TokenKind TokKind = getTokenKind(LParenLoc,SM,Context);
         llvm::outs() << "TOKEN=="<<  tok::getTokenName(TokKind) << "\r\n";
-        
         if (TokKind == tok::l_brace)
         {
             //diag(RParenLoc, ErrorMessage);
@@ -159,7 +171,6 @@ bool MyVisitor::TraverseDecl(Decl* decl)
            return false;
        SourceLocation StartLoc =Lexer::getLocForEndOfToken(InitialLoc, 0, SM, Context->getLangOpts());
       TheRewriter.InsertTextAfter(StartLoc,"GOAL_AAAA:");*/
-      
   }
   
   // Treat macros.
@@ -174,8 +185,7 @@ bool MyVisitor::TraverseDecl(Decl* decl)
   // Lexer::getLocForEndOfToken working properly.
   InitialLoc = Lexer::makeFileCharRange(
                    CharSourceRange::getCharRange(InitialLoc, S->getLocStart()),
-                   SM, Context->getLangOpts())
-                   .getBegin();
+                   SM, Context->getLangOpts()).getBegin();
   if (InitialLoc.isInvalid())
     return false;
   SourceLocation StartLoc =Lexer::getLocForEndOfToken(InitialLoc, 0, SM, Context->getLangOpts());
@@ -186,36 +196,40 @@ bool MyVisitor::TraverseDecl(Decl* decl)
   if (EndLocHint.isValid())
   {
       EndLoc = EndLocHint;
-      ClosingInsertion = "\n}\n";
+      ClosingInsertion = "\n/*A*/}\n";
       //TheRewriter.InsertTextAfter(EndLoc,ClosingInsertion);
   } 
   else 
   {
       const auto FREnd = FileRange.getEnd().getLocWithOffset(-1);
       EndLoc = findEndLocation(FREnd, SM, Context);
-      ClosingInsertion = "\n}\n";
+      ClosingInsertion = "\n/*B*/}\n";
       //TheRewriter.InsertTextAfter(EndLoc,ClosingInsertion);
   }
-
   assert(StartLoc.isValid());
   assert(EndLoc.isValid());
-  // Don't require braces for statements spanning less than certain number of
-  // lines.
-  
+  // Don't require braces for statements spanning less than certain number of lines.
+  //unsigned StartLine = SM.getSpellingLineNumber(StartLoc);
   //auto Diag = diag(StartLoc,"statement should be inside braces");
   //Diag << FixItHint::CreateInsertion(StartLoc, " {")
   //     << FixItHint::CreateInsertion(EndLoc, ClosingInsertion);
-  
-  //FixItHint::CreateInsertion(StartLoc, " {");
-  //FixItHint::CreateInsertion(EndLoc, ClosingInsertion);
-  
-  TheRewriter.InsertTextAfter(StartLoc," \n{\n" + GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString()));
-  TheRewriter.InsertTextAfter(EndLoc,ClosingInsertion);
+  if(myOptions->addLabels) TheRewriter.InsertTextAfter(StartLoc,GET_LINE()+"\n{\n" + GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+GET_LINE_E());
+  if(instrumentOption == InstrumentOption::MUST_INSERT_ELSE && myOptions->addElse)
+  {
+      TheRewriter.InsertTextBefore(EndLoc,GET_LINE()+ClosingInsertion+"else \n{"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"}"+GET_LINE_E());
+  }
+  else 
+  {
+#ifdef MYDEBUG
+      std::cout << "LINE:"<< EndLoc.printToString(SM) << " V_counter:" << V_counter << std::endl;
+#endif
+      if(myOptions->addLabels) TheRewriter.InsertTextBefore(EndLoc,GET_LINE()+ClosingInsertion+GET_LINE_E());
+  }
   return true;
 }
  void MyVisitor::check(Stmt * S)
  {
-     const SourceManager &SM = *TheHolder.SourceManager;
+     const SourceManager &SM = *(TheHolder.SourceManager);
      const ASTContext *Context = TheHolder.ASTContext;
 
     // Get location of closing parenthesis or 'do' to insert opening brace.
@@ -250,21 +264,30 @@ bool MyVisitor::TraverseDecl(Decl* decl)
             return;
         //if (ForceBracesStmts.erase(S))
         //    ForceBracesStmts.insert(ifStmt->getThen());
-        checkStmt(ifStmt->getThen(), StartLoc, ifStmt->getElseLoc());
+        
         Stmt *Else = ifStmt->getElse();
         
-    
         //if(Else && !isa<IfStmt>(Else))
         if (Else) 
         {
             // Omit 'else if' statements here, they will be handled directly.
+            checkStmt(ifStmt->getThen(), StartLoc, ifStmt->getElseLoc(),InstrumentOption::STMT_OPTION_NONE );
             checkStmt(Else, ifStmt->getElseLoc(), SourceLocation());
+        }
+        else
+        {
+            // Strart: 16.05.2020
+            //ifStmt->getThen()->getLocEnd()
+            //std::cout << SM.getCharacterData(ifStmt->getThen()->getLocEnd()) << std::endl;
+            //TheRewriter.InsertTextAfter(ifStmt->getThen()->getLocEnd().getLocWithOffset(1),"else {houssam"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"}");
+            checkStmt(ifStmt->getThen(), StartLoc, ifStmt->getElseLoc(),InstrumentOption::MUST_INSERT_ELSE);
+            
         }
     }
     /*else if(isa<CompoundStmt>(S))
     {
         CompoundStmt * compoundStmt = cast<CompoundStmt>(S);
-        TheRewriter.InsertTextAfter(compoundStmt->getLBracLoc().getLocWithOffset(1),GoalCounter::getInstance().GetNewGoal());
+        TheRewriter.InsertTextAfter(compoundStmt->getRBracLoc().getLocWithOffset(-1),"\n;GOAL_XX:;\n");
 
     }*/
     /*else if(isa<DeclStmt>(S))
@@ -274,12 +297,12 @@ bool MyVisitor::TraverseDecl(Decl* decl)
     }*/
     else if(isa<SwitchStmt>(S))
     {
-        llvm::outs()<<  current_func->getNameAsString() << "\n";
+        //llvm::outs()<<  current_func->getNameAsString() << "\n";
          SwitchStmt * switchStmt = cast<SwitchStmt>(S);
          const SwitchCase * switchCase = switchStmt->getSwitchCaseList();
          while(switchCase != nullptr)
          {
-            TheRewriter.InsertTextAfter(switchCase->getColonLoc().getLocWithOffset(1),GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString()));
+            if(myOptions->addLabels) TheRewriter.InsertTextAfter(switchCase->getColonLoc().getLocWithOffset(1),GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString()));
             switchCase = switchCase->getNextSwitchCase();
          }
          
@@ -408,8 +431,47 @@ SourceLocation MyVisitor::findEndLocation(SourceLocation LastTokenLoc,const Sour
 
 bool MyVisitor::VisitDecl(Decl *decl)
 {
-     if (decl->isFunctionOrFunctionTemplate())
+    if (decl->isFunctionOrFunctionTemplate())
         this->current_func = decl->getAsFunction();
+   
+     //16.05.2020
+     if(decl->isFunctionOrFunctionTemplate() && decl->hasBody() && myOptions->addGoalAtEndOfFunc)         
+     {
+         Stmt*  body =decl->getBody();
+         // Iterate over the top level of statements; 
+         //not insert before
+         // I don't know if we must check if the sub-statements include 'return'
+         bool hasReturn = false;
+         for (Stmt::child_iterator i = body->child_begin(), e = body->child_end(); i != e; ++i)
+         {
+             Stmt *currStmt = *i;
+             if(isa<ReturnStmt>(currStmt))
+             {
+                 hasReturn=true;
+                 ReturnStmt * retStmt =cast<ReturnStmt>(currStmt);
+                  //std::cout << "BEGIN STMMT" << std::endl;
+                  //retStmt->dumpColor();
+                  //std::cout << "END STMMT" << std::endl;
+                 TheRewriter.InsertTextBefore(retStmt->getLocStart().getLocWithOffset(0) ,GET_LINE()+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"");
+             }
+            
+         }
+         // NOTE : insert Before
+         if(!hasReturn)
+             TheRewriter.InsertTextBefore(body->getLocEnd().getLocWithOffset(0),GET_LINE() + GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString()));
+         
+     }
+      //20.05.2020
+    if(decl->isFunctionOrFunctionTemplate() && decl->hasBody())
+    {
+        std::string lbl =myOptions->GetLabelForFunc(this->current_func->getNameAsString());
+        if(!lbl.empty())
+        {
+            Stmt*  body =decl->getBody();
+            bool hasLbl = isLabelExistsInStement(body,lbl);            
+            if(!hasLbl)TheRewriter.InsertTextBefore(body->getLocStart().getLocWithOffset(1),GET_LINE()+lbl+":;\n");            
+        }
+    }
      return true;
   }
 
@@ -417,14 +479,12 @@ bool MyVisitor::VisitDecl(Decl *decl)
 
   bool MyVisitor::VisitStmt(Stmt *s)
   {
-      if(!s)
-          return true;
+      if(!s) return true;
       //llvm::outs() << "SSSSSSSSSSSSSSSs\r\n" ;
-      
-      const SourceManager &SM = *TheHolder.SourceManager;
-      const ASTContext *Context = TheHolder.ASTContext;
+      //const SourceManager &SM = *TheHolder.SourceManager;
+      //const ASTContext *Context = TheHolder.ASTContext;
      
-      if(msutPrint_AST)
+      if(myOptions->showParseTree)
       {
           s->dumpColor();
           //s->getLocStart().dump(SM);
@@ -454,3 +514,19 @@ bool MyVisitor::VisitDecl(Decl *decl)
     }
       return true;
   }  
+bool isLabelExistsInStement(Stmt * s , std::string & lbl)
+{
+    if(isa<LabelStmt>(s))
+    {
+        LabelStmt * lblStmt =cast<LabelStmt>(s);
+        if(lbl==lblStmt->getName())
+            return true;
+    }
+    for (Stmt::child_iterator i = s->child_begin(), e = s->child_end(); i != e; ++i)
+    {
+        Stmt *currStmt = *i;
+        if(isLabelExistsInStement(currStmt,lbl))
+            return true;
+    }
+    return false;
+  }
