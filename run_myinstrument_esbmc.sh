@@ -2,10 +2,7 @@
 #ESBMC=/home/kaled/sdb1/esbmc+python-v6.0.0-linux-static-64/bin/esbmc
 ESBMC=/home/kaled/Desktop/ESBMC-6.2.0-Linux/bin/esbmc
 #FILE=/home/kaled/sdb1/uFTP/main.c
-#FILE=/home/kaled/Desktop/2020-my-projects/sv-benchmarks/c/array-examples/data_structures_set_multi_proc_ground-1.i
-FILE=../../sv-benchmarks-testcomp20/c/array-examples/data_structures_set_multi_proc_ground-1.i
-#./esbmc-wrapper.py -p ../../sv-benchmarks/c/properties/coverage-error-call.prp -s falsi ../../sv-benchmarks/c/array-examples/data_structures_set_multi_proc_ground-1.i
-
+FILE=/home/kaled/Desktop/2020-my-projects/sv-benchmarks-testcomp20/c/array-examples/data_structures_set_multi_proc_ground-1.i
 #ESBMC_PARAMS='-I/home/kaled/sdb1/uFTP -I/home/kaled/sdb1/uFTP/library --no-div-by-zero-check --force-malloc-success --state-hashing --no-align-check --k-step 5 --floatbv --no-slice --show-cex --unwind 4 --max-k-step 10 --context-bound 2 --32 --incremental-bmc --no-pointer-check --no-bounds-check --interval-analysis --no-slice '
 ESBMC_PARAMS='-I/home/kaled/Desktop/experment_10_02_2020/uFTP -I/home/kaled/Desktop/experment_10_02_2020/uFTP/library --show-cex --unwind 4 --k-step 5 '
 INSTRUMENT_PARAMS='-I/home/kaled/Desktop/experment_10_02_2020/uFTP -I/home/kaled/Desktop/experment_10_02_2020/uFTP/library'
@@ -19,7 +16,7 @@ mkdir ./output/test-suite
 
 #-nogoalProFunc
 #./output/goals_out
-./FuSeBMC $FILE ./output/instrumented.c ./output/my_goals.txt  -nogoalProFunc $INSTRUMENT_PARAMS
+./my_instrument $FILE ./output/instrumented.c ./output/my_goals.txt  -nogoalProFunc $INSTRUMENT_PARAMS
 ARCH='32'
 PROPERTY_FILE=p_reach
 #"kinduction", "falsi", "incr"
