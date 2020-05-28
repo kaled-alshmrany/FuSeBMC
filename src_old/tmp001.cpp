@@ -331,12 +331,12 @@ int main(int argc, char **argv)
   headerSearchOptions.AddPath("/usr/include",clang::frontend::Angled,false,false);
   */
   
-  headerSearchOptions.AddPath(std::string("/home/kaled/clang_base/lib/clang/6.0.0/include"), clang::frontend::Angled, false, false);
+  headerSearchOptions.AddPath(std::string("/home/kaled/Downloads/clang_base/lib/clang/6.0.0/include"), clang::frontend::Angled, false, false);
   headerSearchOptions.AddPath(std::string("/usr/include"),clang::frontend::Angled, false, false);
   headerSearchOptions.AddPath(std::string("/usr/include/linux"), clang::frontend::Angled, false, false);
   headerSearchOptions.AddPath(std::string("/usr/include/c++/9/tr1"), clang::frontend::Angled, false, false);
   headerSearchOptions.AddPath(std::string("/usr/include/c++/9"), clang::frontend::Angled, false, false);
-  headerSearchOptions.AddPath(std::string("/home/kaled/sdb1/uFTP/library"), clang::frontend::Angled, false, false);
+  headerSearchOptions.AddPath(std::string("/home/kaled/Desktop/2020-my-projects/experment_10_02_2020/uFTP/library"), clang::frontend::Angled, false, false);
     
   // </Warning!!> -- End of Platform Specific Code
 
