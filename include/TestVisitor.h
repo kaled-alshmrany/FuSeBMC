@@ -1,5 +1,5 @@
-#ifndef MYVISITOR_H
-#define MYVISITOR_H
+#ifndef TESTVISITOR_H
+#define TESTVISITOR_H
 
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/Basic/SourceManager.h>
@@ -44,29 +44,21 @@
 
 
 using namespace clang;
-bool isLabelExistsInStement(Stmt * s , std::string & lbl);
-class MyVisitor : public RecursiveASTVisitor<MyVisitor>
+
+class TestVisitor : public RecursiveASTVisitor<TestVisitor>
 {
-    using Base = RecursiveASTVisitor<MyVisitor>;
+    using Base = RecursiveASTVisitor<TestVisitor>;
     
 public:
     Rewriter& TheRewriter;
     MyHolder& TheHolder;
     FunctionDecl* current_func;
     //SourceManager * TheSourceManager;
-    MyVisitor(Rewriter &R, MyHolder& H) : TheRewriter(R),TheHolder(H)
+    TestVisitor(Rewriter &R, MyHolder& H) : TheRewriter(R),TheHolder(H)
     {
     }
-   
-  bool TraverseDecl(Decl* decl);
-  tok::TokenKind getTokenKind(SourceLocation Loc, const SourceManager &SM, const ASTContext *Context);
-  bool checkStmt(Stmt *S,SourceLocation InitialLoc, SourceLocation EndLocHint = SourceLocation(), InstrumentOption instrumentOption = InstrumentOption::STMT_OPTION_NONE);
-  void check(Stmt * S);
-  template <typename IfOrWhileStmt> 
-    SourceLocation findRParenLoc(const IfOrWhileStmt *S,const SourceManager &SM,const ASTContext *Context);
-  SourceLocation forwardSkipWhitespaceAndComments(SourceLocation Loc,const SourceManager &SM,const ASTContext *Context);
-  SourceLocation findEndLocation(SourceLocation LastTokenLoc,const SourceManager &SM,const ASTContext *Context);
-  bool VisitDecl(Decl *decl);
+
+  //bool VisitDecl(Decl *decl);
   bool VisitStmt(Stmt *s);  
 };
 #endif
