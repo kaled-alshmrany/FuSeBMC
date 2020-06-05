@@ -134,7 +134,10 @@ bool MyVisitor::TraverseDecl(Decl* decl)
   {
       //while(x){compound_statment} ; if(x){compund_sttement}
       CompoundStmt * compoundStmt = cast<CompoundStmt>(S);
-      if(myOptions->addLabels) TheRewriter.InsertTextAfter(compoundStmt->getLBracLoc().getLocWithOffset(1),GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString()));
+      if(myOptions->addLabels)
+          TheRewriter.InsertTextAfter(compoundStmt->getLBracLoc().getLocWithOffset(1),
+              (hasOneCompoundChild(compoundStmt)? "" : GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString()))
+      );
       //16.05.2020
       if(instrumentOption == InstrumentOption::MUST_INSERT_ELSE && myOptions->addElse)
           TheRewriter.InsertTextBefore(compoundStmt->getRBracLoc().getLocWithOffset(1),GET_LINE()+"\nelse\n {"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"}"+GET_LINE_E());       
@@ -213,7 +216,10 @@ bool MyVisitor::TraverseDecl(Decl* decl)
   //auto Diag = diag(StartLoc,"statement should be inside braces");
   //Diag << FixItHint::CreateInsertion(StartLoc, " {")
   //     << FixItHint::CreateInsertion(EndLoc, ClosingInsertion);
-  if(myOptions->addLabels) TheRewriter.InsertTextAfter(StartLoc,GET_LINE()+"\n{\n" + GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+GET_LINE_E());
+  if(myOptions->addLabels) TheRewriter.InsertTextAfter(StartLoc,GET_LINE()+"\n{\n" +
+  ((hasOneCompoundChild(S)?"" : GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())))
+  
+  + GET_LINE_E());
   if(instrumentOption == InstrumentOption::MUST_INSERT_ELSE && myOptions->addElse)
   {
       TheRewriter.InsertTextBefore(EndLoc,GET_LINE()+ClosingInsertion+"else \n{"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"}"+GET_LINE_E());
@@ -221,7 +227,7 @@ bool MyVisitor::TraverseDecl(Decl* decl)
   else 
   {
 #ifdef MYDEBUG
-      std::cout << "LINE:"<< EndLoc.printToString(SM) << " V_counter:" << V_counter << std::endl;
+      //std::cout << "LINE:"<< EndLoc.printToString(SM) << " V_counter:" << V_counter << std::endl;
 #endif
       if(myOptions->addLabels) TheRewriter.InsertTextBefore(EndLoc,GET_LINE()+ClosingInsertion+GET_LINE_E());
   }
@@ -530,3 +536,22 @@ bool isLabelExistsInStement(Stmt * s , std::string & lbl)
     }
     return false;
   }
+bool hasOneCompoundChild(Stmt * s)
+{
+    /*unsigned int count =0;
+    for (Stmt::child_iterator i = s->child_begin(), e = s->child_end(); i != e; ++i)
+    {
+        count++;
+    }
+    if(count==1)
+    {
+        Stmt * child= *(s->child_begin());
+         if(isa<IfStmt>(child) || isa<ForStmt>(child) || isa<WhileStmt>(child) || isa<CXXForRangeStmt>(child)
+                 || isa<SwitchStmt>(child) || isa<DoStmt>(child))
+             return true;
+        
+    }
+    return false;
+*/
+    return false;
+}
