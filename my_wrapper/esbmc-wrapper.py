@@ -11,12 +11,19 @@ import resource
 import re
 #20.05.2020
 import zipfile
+#from time import process_time 
+#from time import process_time_ns
+import hashlib
+
+
 
 # Start time for this script
 start_time = time.time()
+#start_time=process_time()
 property_file_content = ""
 category_property = 0
 benchmark=''
+property_file=''
 witness_file_name=''
 
 __graphml_base__ = '{http://graphml.graphdrawing.org/xmlns}'
@@ -25,32 +32,76 @@ __edge_tag__ = __graphml_base__ + 'edge'
 __data_tag__ = __graphml_base__ + 'data'
 __testSuiteDir__ = "test-suite/"
 
-# 16.05.2020
+# 16.05.2020 + kaled 03.06.2020
 INSTRUMENT_OUTPUT_DIR = './my_instrument_outpt/'
-INSTRUMENT_OUTPUT_FILE = './my_instrument_outpt/instrumrnted.c'
+INSTRUMENT_OUTPUT_FILE = './my_instrument_outpt/instrumented.c'
+INSTRUMENT_OUTPUT_FILE_OBJ = './my_instrument_outpt/instrumented.o'
 INSTRUMENT_OUTPUT_GOALS_FILE = './my_instrument_outpt/goals.txt'
 INSTRUMENT_OUTPUT_GOALS_DIR = './my_instrument_outpt/goals_output/'
-MY_INSTRUMENT_EXE_PATH = '/home/kaled/Desktop/2020-my-projects/21-24.05.2020/FuSeBMC_v2.0/my_instrument/my_instrument'
+MY_INSTRUMENT_EXE_PATH = './my_instrument'
 #20.05.2020
 TEST_SUITE_DIR_ZIP = 'test-suite.zip'
 MAX_NUM_OF_LINES_OUT=50
 MAX_NUM_OF_LINES_ERRS=50
 SHOW_ME_OUTPUT = True
+MUST_COMPILE_INSTRUMENTED = True
+
 
 # strings
 esbmc_path = "./esbmc "
 # 16.05.2020
-esbmc_path='/home/kaled/Desktop/ESBMC-6.2.0-Linux/bin/esbmc '
 
 # ESBMC default commands: this is the same for every submission
 esbmc_dargs = "--no-div-by-zero-check --force-malloc-success --state-hashing "
 #16.05.2020 remove --unlimited-k-steps
+#03.06.2020 kaled reduce the number of "--k-step 120"
 esbmc_dargs += "--no-align-check --k-step 5 --floatbv  "
+#02.06.2020 adding options for Coverage-error-call
+#esbmc_dargs += "--no-align-check --k-step 120 --floatbv --unlimited-k-steps "
 esbmc_dargs += "--context-bound 2 "
 #16.05.2020
-esbmc_dargs += "--unwind 30 --max-k-step 30 --show-cex "
+esbmc_dargs += "--show-cex "
 
-
+#29.05.2020
+C_COMPILER = 'gcc'
+COV_TEST_EXE = '/home/kaled/Downloads/test-suite-validator/bin/testcov'
+COV_TEST_PARAMS = ['--no-runexec','--use-gcov','-64']
+RUN_COV_TEST = True
+time_out_ms = 1000 * 1000 # 100 seconds
+time_for_zipping_ms = 200 # the required time for zipping folder; Can Zero ??
+is_ctrl_c = False
+class MyTimeOutException(Exception):
+    pass
+def IsTimeOut(must_throw_ex = False):
+    global is_ctrl_c
+    global time_out_ms
+    global start_time
+    if is_ctrl_c is True:
+        raise KeyboardInterrupt()
+    
+    # time.time() : seconds since 1970
+    end_time=time.time()
+    exec_time_ms=(end_time - start_time) * 1000
+    #print('start_time',start_time)
+    #print('end_time',end_time) 
+    #print('exec_time_ms',exec_time_ms)
+    if(exec_time_ms>= time_out_ms):
+        if must_throw_ex:
+            raise MyTimeOutException()
+        else:
+            return True
+    return False
+def GetSH1ForFile(fil):
+    BUF_SIZE = 32768
+    sha1 = hashlib.sha1()
+    with open(fil, 'rb') as f:
+        while True:
+            data = f.read(BUF_SIZE)
+            if not data:
+                break
+            sha1.update(data)
+        return sha1.hexdigest()
+    return ''
 #20.05.2020
 def ZipDir(path, zip_file_name):
     #RemoveFileIfExists(zip_file_name)
@@ -346,10 +397,15 @@ class TestCompMetadataGenerator(object):
         properties = {'sourcecodelang', 'sourcecodelang', 'producer',
                       'programfile', 'programhash', 'architecture', 'creationtime'}
         for property in properties:
-            # 16.05.2020
-            if (category_property == Property.cover_branches or category_property == Property.cover_error_call) \
-                and property == 'programfile':
-                ET.SubElement(root, property).text= benchmark
+            # 16.05.2020 && 29.05.2020
+            if (category_property == Property.cover_branches or category_property == Property.cover_error_call):
+                if property == 'programfile':
+                    ET.SubElement(root, property).text= benchmark
+                elif property == 'programhash':
+                    ET.SubElement(root, property).text= GetSH1ForFile(benchmark)
+                else:
+                    ET.SubElement(root, property).text = self.metadata[property]
+                    
             else:
                 ET.SubElement(root, property).text = self.metadata[property]
         
@@ -457,13 +513,56 @@ class Property:
     memcleanup = 5
     cover_branches = 6
     cover_error_call = 7 # 20.05.2020
+#29.05.2020
+def CompileFile(fil, include_dir = '.'):
+    fil=os.path.abspath(fil)
+    if not os.path.isfile(fil):
+        print('FILE:',fil, 'not exists')
+        exit(0)
+    cmd=[C_COMPILER,'-c',fil , '-o', INSTRUMENT_OUTPUT_FILE_OBJ,'-I'+include_dir]
+    p=subprocess.Popen(cmd, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    while True:
+        line = p.stdout.readline()
+        if not line: break
+        line_de=line.decode('utf-8')
+        print(line_de)
+    while True:
+        line = p.stderr.readline()
+        if not line: break
+        line_de=line.decode('utf-8')
+        print(line_de)
+    if not os.path.isfile(INSTRUMENT_OUTPUT_FILE_OBJ):
+        print('Cannot compile: ',fil)
+        exit(0)
+    
+#29.05.2020
+def RunCovTest():
+    cov_test_exe_abs=os.path.abspath(COV_TEST_EXE)
+    cov_test_cmd =[cov_test_exe_abs]
+    cov_test_cmd.extend(COV_TEST_PARAMS)
+    test_suite_dir_zip_abs=os.path.abspath(TEST_SUITE_DIR_ZIP)
+    property_file_abs = os.path.abspath(property_file)
+    benchmark_abs = os.path.abspath(benchmark)
+    cov_test_cmd.extend(['--test-suite' ,test_suite_dir_zip_abs , '--goal' ,property_file_abs , benchmark_abs])
+    print(' '.join(cov_test_cmd))
+    p=subprocess.Popen(cov_test_cmd, stdout=subprocess.PIPE,stderr=subprocess.PIPE, cwd = INSTRUMENT_OUTPUT_DIR)
+    while True:
+        line = p.stdout.readline()
+        if not line: break
+        line_de=line.decode('utf-8')
+        print(line_de)
+    while True:
+        line = p.stderr.readline()
+        if not line: break
+        line_de=line.decode('utf-8')
+        print(line_de)    
 
 #20.05.2020
 def run_without_output(cmd_line):
     if(SHOW_ME_OUTPUT): print(cmd_line)
     the_args = shlex.split(cmd_line)
-    p = subprocess.Popen(the_args, stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-    p.communicate()
+    p = subprocess.run(the_args, stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    #p.communicate()
 
 # Function to run esbmc
 def run(cmd_line):
@@ -482,39 +581,56 @@ def run(cmd_line):
     important_outs=[]
     important_errs=[]
     index=-1;
-    the_args = shlex.split(cmd_line)
-    p = subprocess.Popen(the_args, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    
-    while True:
-        index =(index + 1) % MAX_NUM_OF_LINES_OUT
-        line = p.stdout.readline()
-        if not line: break
-        line_de=line.decode('utf-8')
-        if(SHOW_ME_OUTPUT): print(line_de.rstrip())
-        isAddedToImportant=False
-        for out_by_ESBMC in important_outs_by_ESBMC:
-             if out_by_ESBMC in line_de:
-                 important_outs.append(line_de)
-                 isAddedToImportant=True
-                 break
-        if not isAddedToImportant : outs[index]= line_de
-
     index_err=-1
-    while True:
-        index_err =(index_err + 1) % MAX_NUM_OF_LINES_ERRS
-        line = p.stderr.readline()
-        if not line: break
-        line_de=line.decode('utf-8')
-        if(SHOW_ME_OUTPUT): print(line_de.rstrip())
-        isAddedToImportant=False
-        for out_by_ESBMC in important_outs_by_ESBMC:
-            if out_by_ESBMC in line_de:
-                important_errs.append(line_de)
-                isAddedToImportant=True
-                break
-        if not isAddedToImportant : errs[index]= line_de
-
-    #(stdout, stderr) = p.communicate()
+    the_args = shlex.split(cmd_line)
+      
+    #29.05.2020
+    try:
+        p = subprocess.Popen(the_args, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        while True:
+            IsTimeOut(True)
+            index =(index + 1) % MAX_NUM_OF_LINES_OUT
+            line = p.stdout.readline()
+            if not line: break
+            line_de=line.decode('utf-8')
+            if(SHOW_ME_OUTPUT): print(line_de.rstrip())
+            isAddedToImportant=False
+            for out_by_ESBMC in important_outs_by_ESBMC:
+                if out_by_ESBMC in line_de:
+                    important_outs.append(line_de)
+                    isAddedToImportant=True
+                    break
+            if not isAddedToImportant : outs[index]= line_de
+    
+        
+        while True:
+            IsTimeOut(True)
+            index_err =(index_err + 1) % MAX_NUM_OF_LINES_ERRS
+            line = p.stderr.readline()
+            if not line: break
+            line_de=line.decode('utf-8')
+            if(SHOW_ME_OUTPUT): print(line_de.rstrip())
+            isAddedToImportant=False
+            for out_by_ESBMC in important_outs_by_ESBMC:
+                if out_by_ESBMC in line_de:
+                    important_errs.append(line_de)
+                    isAddedToImportant=True
+                    break
+            if not isAddedToImportant : errs[index]= line_de
+    
+        #(stdout, stderr) = p.communicate()
+        
+          
+        #print (stdout.decode(), stderr.decode())
+        #return stdout.decode()
+    except MyTimeOutException as e:
+        pass
+    except KeyboardInterrupt:
+        global is_ctrl_c
+        is_ctrl_c = True
+        #exit(0)
+        pass
+    #29.05.2020
     out_str=''
     for imp in important_errs:
         out_str += imp
@@ -537,9 +653,6 @@ def run(cmd_line):
     #part 02
     for loop in range(0,index+1):
         out_str += outs[loop]
-      
-    #print (stdout.decode(), stderr.decode())
-    #return stdout.decode()
     return out_str
 
 
@@ -717,10 +830,10 @@ def get_command_line(strat, prop, arch, benchmark, fp_mode):
         command_line += "--no-pointer-check --no-bounds-check --interval-analysis --no-slice "
     #16.05.2020
     elif prop == Property.cover_branches:
-        command_line += "--no-pointer-check --no-bounds-check --interval-analysis --no-slice "
-     #20.05.2020
+        command_line += "--unwind 1000 --max-k-step 1000 --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
+     #20.05.2020 + #03.06.2020 kaled: adding the option "--unlimited-k-steps" for coverage_error_call
     elif prop == Property.cover_error_call:
-        command_line += "--no-pointer-check --no-bounds-check --interval-analysis --no-slice "
+        command_line += "--unlimited-k-steps --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
     else:
         print ("Unknown property")
         exit(1)
@@ -733,109 +846,164 @@ def get_command_line(strat, prop, arch, benchmark, fp_mode):
 
 
 def verify(strat, prop, fp_mode):
+    #29.05.2020
+    global is_ctrl_c
     # 16.05.2020
     if(prop == Property.cover_branches):
-        run_without_output(' '.join([MY_INSTRUMENT_EXE_PATH, '--input',benchmark ,'--output', INSTRUMENT_OUTPUT_FILE , 
-                              '--goal-output-file',INSTRUMENT_OUTPUT_GOALS_FILE,'--add-else','--add-labels']))
-        #check if my_instrument worked
-        if not os.path.isfile(INSTRUMENT_OUTPUT_FILE):
-            print("Cannot instrument the file.")
-            return Result.unknown
-        if not os.path.isfile(INSTRUMENT_OUTPUT_GOALS_FILE):
-            print("Cannot instrument the file, goalFile cannot be found.")
-            return Result.unknown
-        goals_count_file = open(INSTRUMENT_OUTPUT_GOALS_FILE, "r")
-        goals_count = int(goals_count_file.read())
-        goals_covered=0
-        goals_covered_lst=[]
-        #list of list of NonDeterministicCall: each NonDeterministicCall has a value
-        inst_all_assumptions=[]
-        #--witness-output
-        # NOTE: We work with : INSTRUMENT_OUTPUT_FILE
-        inst_esbmc_command_line = get_command_line(strat, prop, arch, INSTRUMENT_OUTPUT_FILE, fp_mode)
-        for i in range(1,goals_count+1):
-            goal='GOAL_'+str(i)
-            goal_witness_file=goal+'.graphml'
-            goal_witness_file_full=os.path.join(INSTRUMENT_OUTPUT_GOALS_DIR ,goal_witness_file) 
-            inst_new_esbmc_command_line= inst_esbmc_command_line + ' --witness-output ' + goal_witness_file_full + ' --error-label ' + goal
-            print('STARTING GOAL: '+goal)
-            #print('COMMAAND:'+inst_new_esbmc_command_line)
-            output = run(inst_new_esbmc_command_line)
-            if not os.path.isfile(goal_witness_file_full):
-                print('Cannot run ESBMC for '+ goal)
-            else:
-                # it is only for __VERIFIER_nondet_int but not __VERIFIER_nondet_uint
-                inst_assumptions=__getNonDetAssumptions__(goal_witness_file_full,INSTRUMENT_OUTPUT_FILE)
-                if i==1:
-                    metadataParser = MetadataParser(goal_witness_file_full)
-                    metadataParser.parse()
-                    TestCompMetadataGenerator(metadataParser.metadata).writeMetadataFile()
-                
-                inst_all_assumptions.append(inst_assumptions)
-                if len(inst_assumptions)>0 :
-                    goals_covered += 1
-                    goals_covered_lst.append(goal)
-                
-        print('goals_count',goals_count)
-        print('goals_covered',goals_covered)  
-        print('goals_covered_lst',goals_covered_lst)
-        counter=0
-        #here we write many testcases;we can write one
-        for one_list in inst_all_assumptions:
-            counter+=1
-            with open(os.path.join(__testSuiteDir__,'testcase_'+str(counter)+'.xml'), 'w') as testcase_file:
-                testcase_file.write('<?xml version="1.0" encoding="UTF-8" standalone="no"?>')
-                testcase_file.write('<!DOCTYPE testcase PUBLIC "+//IDN sosy-lab.org//DTD test-format testcase 1.0//EN" "https://sosy-lab.org/test-format/testcase-1.0.dtd">')
-                testcase_file.write('<testcase>')
-                for nonDeterministicCall in one_list:
-                    # if you want to print to std
-                    print(nonDeterministicCall)
-                    testcase_file.write('<input>'+nonDeterministicCall.value +'</input>')            
-                testcase_file.write('</testcase>')       
+        try:
+            run_without_output(' '.join([MY_INSTRUMENT_EXE_PATH, '--input',benchmark ,'--output', INSTRUMENT_OUTPUT_FILE , 
+                                  '--goal-output-file',INSTRUMENT_OUTPUT_GOALS_FILE,'--add-else','--add-labels',
+                                  '--compiler-args', '-I'+os.path.dirname(os.path.abspath(benchmark))]))
+            IsTimeOut(True)
+            #check if my_instrument worked
+            if not os.path.isfile(INSTRUMENT_OUTPUT_FILE):
+                print("Cannot instrument the file.")
+                return Result.unknown
+            if not os.path.isfile(INSTRUMENT_OUTPUT_GOALS_FILE):
+                print("Cannot instrument the file, goalFile cannot be found.")
+                return Result.unknown
+            if MUST_COMPILE_INSTRUMENTED:
+                CompileFile(INSTRUMENT_OUTPUT_FILE,os.path.dirname(os.path.abspath(benchmark)))
+            goals_count_file = open(INSTRUMENT_OUTPUT_GOALS_FILE, "r")
+            goals_count = int(goals_count_file.read())
+            goals_covered=0
+            goals_covered_lst=[]
+            #29.05.2020
+            time_per_goal_for_esbmc=int(time_out_ms - 1000) / goals_count
+            time_per_goal_for_esbmc =int(time_per_goal_for_esbmc / 1000) # to ms
+            if time_per_goal_for_esbmc == 0 : time_per_goal_for_esbmc = 1
+            #list of list of NonDeterministicCall: each NonDeterministicCall has a value
+            inst_all_assumptions=[]
+            #--witness-output
+            # NOTE: We work with : INSTRUMENT_OUTPUT_FILE
+            inst_esbmc_command_line = get_command_line(strat, prop, arch, INSTRUMENT_OUTPUT_FILE, fp_mode)
+            counter=0
+            for i in range(1,goals_count+1):
+                #IsTimeOut(True)
+                goal='GOAL_'+str(i)
+                goal_witness_file=goal+'.graphml'
+                goal_witness_file_full=os.path.join(INSTRUMENT_OUTPUT_DIR ,goal_witness_file) 
+                inst_new_esbmc_command_line = inst_esbmc_command_line + ' --witness-output ' + goal_witness_file_full + ' --error-label ' + goal + ' --timeout ' + str(time_per_goal_for_esbmc)+ 's ' + '-I'+os.path.dirname(os.path.abspath(benchmark))+' '
+                print('STARTING GOAL: '+goal)
+                #print('COMMAAND:'+inst_new_esbmc_command_line)
+                output = run(inst_new_esbmc_command_line)
+                IsTimeOut(True)
+                if not os.path.isfile(goal_witness_file_full):
+                    print('Cannot run ESBMC for '+ goal)
+                else:
+                    # it is only for __VERIFIER_nondet_int but not __VERIFIER_nondet_uint
+                    inst_assumptions=__getNonDetAssumptions__(goal_witness_file_full,INSTRUMENT_OUTPUT_FILE)
+                    if i==1:
+                        metadataParser = MetadataParser(goal_witness_file_full)
+                        metadataParser.parse()
+                        TestCompMetadataGenerator(metadataParser.metadata).writeMetadataFile()
+                    
+                    inst_all_assumptions.append(inst_assumptions)
+                    if len(inst_assumptions)>0 :
+                        goals_covered += 1                        
+                        goals_covered_lst.append(goal)
+                        #29.05.2020
+                        with open(os.path.join(__testSuiteDir__,'testcase_'+str(i)+'.xml'), 'w') as testcase_file:
+                            testcase_file.write('<?xml version="1.0" encoding="UTF-8" standalone="no"?>')
+                            testcase_file.write('<!DOCTYPE testcase PUBLIC "+//IDN sosy-lab.org//DTD test-format testcase 1.0//EN" "https://sosy-lab.org/test-format/testcase-1.0.dtd">')
+                            testcase_file.write('<testcase>')
+                            for nonDeterministicCall in inst_assumptions:
+                                # if you want to print to std
+                                #print(nonDeterministicCall)
+                                testcase_file.write('<input>'+nonDeterministicCall.value +'</input>')            
+                            testcase_file.write('</testcase>')
+                    
+            
+            
+            #here we write many testcases;we can write one
+            #for one_list in inst_all_assumptions:
+            #    counter+=1
+        except MyTimeOutException as e:
+            print('Timeout !!!')
+            pass
+        except KeyboardInterrupt:
+            print('CTRL + C')
+            pass   
         #20.05.2020
-        ZipDir(__testSuiteDir__ ,TEST_SUITE_DIR_ZIP)    
+        ZipDir(__testSuiteDir__ ,TEST_SUITE_DIR_ZIP)
+        print('goals_count',goals_count)
+        print('goals_covered',goals_covered)
+        print('goals_covered_lst',goals_covered_lst)
+        if RUN_COV_TEST:
+            RunCovTest()            
+
         # todo: what is the result
         #if(len(inst_all_assumptions)>0):
         #    return parse_result("VERIFICATION FAILED",prop)
         #else:
         #    return parse_result("VERIFICATION SUCCESSFUL",prop)
+        
+        #29.05.2020
+        if is_ctrl_c:
+            return parse_result("something else will get unknown",prop)
+        #Important with False
+        if IsTimeOut(False):
+            return parse_result("Timed out",prop)
         return parse_result("VERIFICATION SUCCESSFUL",prop)
         
     #20.05.2020
     if(prop == Property.cover_error_call):
-        run_without_output(' '.join([MY_INSTRUMENT_EXE_PATH, '--input',benchmark ,'--output', INSTRUMENT_OUTPUT_FILE , 
-                              '--add-label-in-func','ERROR=reach_error']))
-             
-        isInstrumentOK=True
-        toWorkSourceFile=''
-        #check if my_instrument worked
-        if not os.path.isfile(INSTRUMENT_OUTPUT_FILE):
-            print("Cannot instrument the file.")
-            isInstrumentOK=False
-            toWorkSourceFile=benchmark
-        else:
-            toWorkSourceFile=INSTRUMENT_OUTPUT_FILE
-            #return "Error"
+        try:
+            run_without_output(' '.join([MY_INSTRUMENT_EXE_PATH, '--input',benchmark ,'--output', INSTRUMENT_OUTPUT_FILE , 
+                                  '--add-label-in-func','ERROR=reach_error','--compiler-args', '-I'+os.path.dirname(os.path.abspath(benchmark))]))
+            IsTimeOut(True)     
+            isInstrumentOK=True
+            toWorkSourceFile=''
+            #check if my_instrument worked
+            if not os.path.isfile(INSTRUMENT_OUTPUT_FILE):
+                print("Cannot instrument the file.")
+                isInstrumentOK=False
+                toWorkSourceFile=benchmark
+            else:
+                toWorkSourceFile=INSTRUMENT_OUTPUT_FILE
+                #return "Error"
+            if MUST_COMPILE_INSTRUMENTED :
+                CompileFile(toWorkSourceFile,os.path.dirname(os.path.abspath(toWorkSourceFile)))
+            esbmc_command_line = get_command_line(strat, prop, arch, toWorkSourceFile, fp_mode)
+            witness_file_name = os.path.join(INSTRUMENT_OUTPUT_DIR,os.path.basename(benchmark) + ".graphml")
+            esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(os.path.abspath(benchmark))+ ' '
+            if isInstrumentOK:
+                esbmc_command_line+= ' --error-label ERROR '
+                
+            #29.05.2020
+            # what is the suitable time for us and ESBMC ??
+            esbmc_command_line += '--timeout ' + str(int((time_out_ms -1000) / 1000))+'s'
+            output = run(esbmc_command_line)
+            IsTimeOut(True)
+            #print('outputYYY',output)
+            res = parse_result(output, category_property)
+            #20.05.2020
+            if(res == Result.force_fp_mode):
+                tmp_result=verify(strat, prop, True)
+                return tmp_result
+            #witness && meta
+            if not os.path.isfile(witness_file_name):
+                print("No witness")
+                return res
+            IsTimeOut(True)
+            createTestFile(witness_file_name,toWorkSourceFile)
         
-        esbmc_command_line = get_command_line(strat, prop, arch, toWorkSourceFile, fp_mode)
-        witness_file_name = os.path.join(INSTRUMENT_OUTPUT_DIR,os.path.basename(benchmark) + ".graphml")
-        esbmc_command_line += ' --witness-output ' + witness_file_name +' '
-        if isInstrumentOK:
-            esbmc_command_line+= ' --error-label ERROR '
-            
-        output = run(esbmc_command_line)
-        #print('outputYYY',output)
-        res = parse_result(output, category_property)
-        #20.05.2020
-        if(res == Result.force_fp_mode):
-            tmp_result=verify(strat, prop, True)
-            return tmp_result
-        #witness && meta
-        if not os.path.isfile(witness_file_name):
-            print("No witness")
-            return res
-        createTestFile(witness_file_name,toWorkSourceFile)
+        except MyTimeOutException as e:
+            print('Timeout !!!')
+            pass
+        except KeyboardInterrupt:
+            print('CTRL + C')
+            pass  
         ZipDir(__testSuiteDir__ ,TEST_SUITE_DIR_ZIP)
+        if RUN_COV_TEST:
+            RunCovTest() 
+        
+        #29.05.2020
+        if is_ctrl_c:
+            return parse_result("something else will get unknown",prop)
+        #Important with False
+        if IsTimeOut(False):
+            return parse_result("Timed out",prop)
         #return res
         return parse_result("VERIFICATION SUCCESSFUL",prop)
         
@@ -860,6 +1028,8 @@ parser.add_argument("-v", "--version",help="Prints ESBMC's version", action='sto
 parser.add_argument("-p", "--propertyfile", help="Path to the property file")
 parser.add_argument("benchmark", nargs='?', help="Path to the benchmark")
 parser.add_argument("-s", "--strategy", help="ESBMC's strategy",choices=["kinduction", "falsi", "incr"], default="incr")
+#29.05.2020
+parser.add_argument("-t", "--timeout", help="time out millisecond",type=float, default=time_out_ms)
 args = parser.parse_args()
 
 arch = args.arch
@@ -877,6 +1047,11 @@ if property_file is None:
 if benchmark is None:
     print ("Please, specify a benchmark to verify")
     exit(1)
+#29.05.2020
+if not args.timeout is None :
+    time_out_ms = args.timeout
+time_out_ms -= time_for_zipping_ms
+print('time_out_ms',time_out_ms)
 
 # Parse property files
 f = open(property_file, 'r')
