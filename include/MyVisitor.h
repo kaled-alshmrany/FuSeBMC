@@ -45,6 +45,7 @@
 
 using namespace clang;
 bool isLabelExistsInStement(Stmt * s , std::string & lbl);
+bool hasOneCompoundChild(Stmt * s);
 class MyVisitor : public RecursiveASTVisitor<MyVisitor>
 {
     using Base = RecursiveASTVisitor<MyVisitor>;
