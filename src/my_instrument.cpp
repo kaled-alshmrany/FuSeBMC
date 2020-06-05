@@ -3,37 +3,38 @@
 #include <stdio.h>
 #include <cstdlib>
 #include <vector>
+#include <string>
 #include <system_error>
 
-#include "llvm/Support/Host.h"
+#include <llvm/Support/Host.h>
 #include <llvm/Support/raw_ostream.h>
-#include "llvm/ADT/IntrusiveRefCntPtr.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/FileSystem.h"
+#include <llvm/ADT/IntrusiveRefCntPtr.h>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/FileSystem.h>
 
-#include "clang/Basic/DiagnosticOptions.h"
-#include "clang/Frontend/TextDiagnosticPrinter.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "clang/Basic/TargetOptions.h"
-#include "clang/Basic/TargetInfo.h"
-#include "clang/Basic/FileManager.h"
-#include "clang/Basic/SourceManager.h"
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Lex/Lexer.h"
-#include "clang/Basic/Diagnostic.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/AST/ASTConsumer.h"
-#include "clang/Parse/ParseAST.h"
-#include "clang/Rewrite/Frontend/Rewriters.h"
-#include "clang/Rewrite/Core/Rewriter.h"
+#include <clang/Basic/DiagnosticOptions.h>
+#include <clang/Frontend/TextDiagnosticPrinter.h>
+#include <clang/Frontend/CompilerInstance.h>
+#include <clang/Basic/TargetOptions.h>
+#include <clang/Basic/TargetInfo.h>
+#include <clang/Basic/FileManager.h>
+#include <clang/Basic/SourceManager.h>
+#include <clang/Lex/Preprocessor.h>
+#include <clang/Lex/Lexer.h>
+#include <clang/Basic/Diagnostic.h>
+#include <clang/AST/RecursiveASTVisitor.h>
+#include <clang/AST/ASTConsumer.h>
+#include <clang/Parse/ParseAST.h>
+#include <clang/Rewrite/Frontend/Rewriters.h>
+#include <clang/Rewrite/Core/Rewriter.h>
 #include <clang/Lex/PreprocessorOptions.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Basic/Builtins.h>
 #include <llvm/Support/Path.h>
+#include <clang/Tooling/Tooling.h>
 
 #include <my_instrument.h>
 #include <MyVisitor.h>
-#include <TestVisitor.h>
 #include <MyHolder.h>
 #include <GoalCounter.h>
 #include <MyOptions.h>
@@ -122,6 +123,28 @@ std::vector<std::string> * split(std::string s,std::string del)
      vect->push_back(s);
     return vect;
 }
+/**./a/b/c is file or dir ?? **/
+bool createDirs(std::string & path,bool isDir = true)
+{
+    llvm::SmallString<1024> OutputDirectory(path);
+    if(!isDir)
+        llvm::sys::path::remove_filename(OutputDirectory);
+    //const auto abs_path = clang::tooling::getAbsolutePath(path);
+    //std::cout << "OutputDirectory :"<< OutputDirectory.c_str() << std::endl;
+    //const auto directory = llvm::sys::path::parent_path(abs_path);
+    //const auto directory = llvm::sys::path::root_path(path);
+    //std::cout << "Create :"<< directory.data() << std::endl;
+    if (!OutputDirectory.empty())
+    {
+        if (auto ec = llvm::sys::fs::create_directories(OutputDirectory)) 
+        {
+            llvm::errs() <<"failed to create output directory: " << OutputDirectory << "\n" << ec.message().c_str();
+            return false;
+        }
+    }
+    
+    return true;      
+}
 int main(int argc, char **argv)
 {
 
@@ -175,8 +198,10 @@ int main(int argc, char **argv)
               std::cerr << "No Output" << std::endl;
               usage(argv[0]);
               exit(-1);
-          }          
+          }        
           myOptions->outputFile =  argv[arg_index];
+          if(!createDirs(myOptions->outputFile,false))
+              exit(-1);
       }
       else if(strcmp(the_arg,"--goal-output-file")==0)
       {
@@ -188,6 +213,8 @@ int main(int argc, char **argv)
               exit(-1);
           }          
           myOptions->goalOutputFile =  argv[arg_index];
+          if(!createDirs(myOptions->goalOutputFile,false))
+              exit(-1);
       }
       else if(strcmp(the_arg,"--show-parse-tree")==0)
       {
@@ -203,6 +230,8 @@ int main(int argc, char **argv)
               exit(-1);
           }          
           myOptions->goalProFuncOutputDir =  argv[arg_index];
+          if(!createDirs(myOptions->goalProFuncOutputDir,true ))
+              exit(-1);
       }
       else if(strcmp(the_arg,"--add-else")==0)
       {
@@ -468,7 +497,7 @@ int main(int argc, char **argv)
     if(RewriteBuf)
     {
         std::cout << "Output to: " << myOptions->outputFile << std::endl;
-       outFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
+        outFile << std::string(RewriteBuf->begin(), RewriteBuf->end());
         if(MustPrintGeneratedCode)
             llvm::outs() << std::string(RewriteBuf->begin(), RewriteBuf->end());
     }
@@ -544,8 +573,6 @@ int main(int argc, char **argv)
           
       }
   }
-  
-
   return 0;
 }
 
