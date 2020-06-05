@@ -15,12 +15,25 @@ A tool based on ESBMC that can label all the goals in the target C code. Also, i
 * To compile the tool through the makefile:
 
  
-      make clean all.
-
+      make clean release
+      Or
+      make clean debug
 
       Then, you will have the tool under the name "my_instrument"
 
 <br /><br />
+How to run it:
+
+
+./esbmc-wrapper.py -p ./properties/coverage-branches.prp -s incr ./examples/rangesum10.i
+
+
+<br /><br />
+
+
+<br /><br />
+
+If you want to run just the instrument
 
 * FuSeBMC takes 4 parameters:
 
@@ -39,11 +52,13 @@ A tool based on ESBMC that can label all the goals in the target C code. Also, i
 
 * In the folder Examples, you can find some C/C++ examples that we used in terms of testing the tool. I found useful to share it with you.
 
+Note: all the outputs in the folders are based on the experiment on the file "rangesum 10.i" with the property coverage-branches.
+
 <br /><br />
 
 
 
-* The output of the tool will be in the folder "my_wrapper/my_instrument_outpt". You will have these files as follows:
+* The output of the tool will be in the folder "my_instrument_outpt". You will have these files as follows:
 
       1- File called "instrumented.c" which has the input file + the goals labels written on the input code.<br />
       2- File called "my_goal.txt" has the number of goals.<br />
@@ -52,7 +67,7 @@ A tool based on ESBMC that can label all the goals in the target C code. Also, i
 
 <br /><br /><br />
 
-* Other outputs of the tool will be in the folder "my_wrapper". You will have these files as follows:
+* Other outputs of the tool will be in the folder "test-suite". You will have these files as follows:
 
       1- Folder called "test-suite" has the XML files.<br />
       2- Folder called "test-suite.zip" to be used for the tool TestCov.<br />
