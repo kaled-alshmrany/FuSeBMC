@@ -44,7 +44,7 @@ TEST_SUITE_DIR_ZIP = 'test-suite.zip'
 MAX_NUM_OF_LINES_OUT=50
 MAX_NUM_OF_LINES_ERRS=50
 SHOW_ME_OUTPUT = True
-MUST_COMPILE_INSTRUMENTED = True
+MUST_COMPILE_INSTRUMENTED = False
 
 
 # strings
@@ -66,7 +66,7 @@ esbmc_dargs += "--show-cex "
 C_COMPILER = 'gcc'
 COV_TEST_EXE = '/home/kaled/Downloads/test-suite-validator/bin/testcov'
 COV_TEST_PARAMS = ['--no-runexec','--use-gcov','-64']
-RUN_COV_TEST = True
+RUN_COV_TEST = False
 time_out_ms = 1000 * 1000 # 100 seconds
 time_for_zipping_ms = 200 # the required time for zipping folder; Can Zero ??
 is_ctrl_c = False
