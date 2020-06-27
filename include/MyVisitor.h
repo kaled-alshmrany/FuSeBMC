@@ -46,6 +46,12 @@
 using namespace clang;
 bool isLabelExistsInStement(Stmt * s , std::string & lbl);
 bool hasOneCompoundChild(Stmt * s);
+/**
+ * if(x){if(x);}  or if(x);else{if(x);}
+ * @param s
+ * @return 
+ */
+bool isCompoundWithOneIf(Stmt * s);
 class MyVisitor : public RecursiveASTVisitor<MyVisitor>
 {
     using Base = RecursiveASTVisitor<MyVisitor>;
@@ -61,11 +67,13 @@ public:
    
   bool TraverseDecl(Decl* decl);
   tok::TokenKind getTokenKind(SourceLocation Loc, const SourceManager &SM, const ASTContext *Context);
-  bool checkStmt(Stmt *S,SourceLocation InitialLoc, SourceLocation EndLocHint = SourceLocation(), InstrumentOption instrumentOption = InstrumentOption::STMT_OPTION_NONE);
+  bool checkStmt(Stmt *S,SourceLocation InitialLoc, SourceLocation EndLocHint = SourceLocation(), 
+                InstrumentOption instrumentOption = InstrumentOption::STMT_OPTION_NONE, bool isIfIfOrElseIf = false);
   void check(Stmt * S);
   template <typename IfOrWhileStmt> 
     SourceLocation findRParenLoc(const IfOrWhileStmt *S,const SourceManager &SM,const ASTContext *Context);
   SourceLocation forwardSkipWhitespaceAndComments(SourceLocation Loc,const SourceManager &SM,const ASTContext *Context);
+  SourceLocation forwardSkipWhitespaceAndCommentsUntilSemi(SourceLocation Loc,const SourceManager &SM,const ASTContext *Context);
   SourceLocation findEndLocation(SourceLocation LastTokenLoc,const SourceManager &SM,const ASTContext *Context);
   bool VisitDecl(Decl *decl);
   bool VisitStmt(Stmt *s);  
