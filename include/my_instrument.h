@@ -3,7 +3,8 @@
 enum InstrumentOption
 {
      STMT_OPTION_NONE , 
-     MUST_INSERT_ELSE  
+     MUST_INSERT_ELSE ,
+     PARENT_IS_LOOP
 };
 
 #endif
