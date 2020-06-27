@@ -25,12 +25,15 @@ category_property = 0
 benchmark=''
 property_file=''
 witness_file_name=''
+toWorkSourceFile=''
+arch=''
 
 __graphml_base__ = '{http://graphml.graphdrawing.org/xmlns}'
 __graph_tag__ = __graphml_base__ + 'graph'
 __edge_tag__ = __graphml_base__ + 'edge'
 __data_tag__ = __graphml_base__ + 'data'
 __testSuiteDir__ = "test-suite/"
+META_DATA_FILE = __testSuiteDir__ + "/metadata.xml"
 
 # 16.05.2020 + kaled 03.06.2020
 INSTRUMENT_OUTPUT_DIR = './my_instrument_outpt/'
@@ -38,17 +41,26 @@ INSTRUMENT_OUTPUT_FILE = './my_instrument_outpt/instrumented.c'
 INSTRUMENT_OUTPUT_FILE_OBJ = './my_instrument_outpt/instrumented.o'
 INSTRUMENT_OUTPUT_GOALS_FILE = './my_instrument_outpt/goals.txt'
 INSTRUMENT_OUTPUT_GOALS_DIR = './my_instrument_outpt/goals_output/'
-MY_INSTRUMENT_EXE_PATH = './my_instrument'
+
 #20.05.2020
 TEST_SUITE_DIR_ZIP = 'test-suite.zip'
 MAX_NUM_OF_LINES_OUT=50
 MAX_NUM_OF_LINES_ERRS=50
-SHOW_ME_OUTPUT = True
+SHOW_ME_OUTPUT = False
 MUST_COMPILE_INSTRUMENTED = False
 
 
 # strings
 esbmc_path = "./esbmc "
+#COV_TEST_EXE = '/home/kaled/Downloads/test-suite-validator/bin/testcov'
+#MY_INSTRUMENT_EXE_PATH = './my_instrument'
+
+
+#esbmc_path='/home/kaled/sdb1/esbmc+python-v6.0.0-linux-static-64/bin/esbmc '
+#COV_TEST_EXE = '/home/kaled/sdb1/test-suite-validator/bin/testcov'
+COV_TEST_EXE = './bin/testcov'
+MY_INSTRUMENT_EXE_PATH = './my_instrument'
+#MY_INSTRUMENT_EXE_PATH = './my_instrument_06_06'
 # 16.05.2020
 
 # ESBMC default commands: this is the same for every submission
@@ -57,18 +69,23 @@ esbmc_dargs = "--no-div-by-zero-check --force-malloc-success --state-hashing "
 #03.06.2020 kaled reduce the number of "--k-step 120"
 esbmc_dargs += "--no-align-check --k-step 5 --floatbv  "
 #02.06.2020 adding options for Coverage-error-call
+# kaled : 03.06.2020 you must put it in method 'get_command_line line 844'; here is general
 #esbmc_dargs += "--no-align-check --k-step 120 --floatbv --unlimited-k-steps "
 esbmc_dargs += "--context-bound 2 "
 #16.05.2020
+#--unwind 1000 --max-k-step 1000 
 esbmc_dargs += "--show-cex "
 
 #29.05.2020
 C_COMPILER = 'gcc'
-COV_TEST_EXE = '/home/kaled/Downloads/test-suite-validator/bin/testcov'
-COV_TEST_PARAMS = ['--no-runexec','--use-gcov','-64']
-RUN_COV_TEST = False
-time_out_ms = 1000 * 1000 # 100 seconds
-time_for_zipping_ms = 200 # the required time for zipping folder; Can Zero ??
+#COV_TEST_PARAMS = ['--no-runexec','--use-gcov','-64']
+#kaled 03.06.2020
+#COV_TEST_PARAMS= ['--no-runexec','--use-gcov','--cpu-cores','0', '--verbose', '--no-plots','--reduction','BY_ORDER','--reduction-output','test-suite']
+COV_TEST_PARAMS= ['--no-runexec', '--no-isolation', '--memlimit', '6GB', '--timelimit-per-run', '3', '--cpu-cores', '0', '--verbose', '--no-plots','--reduction', 'BY_ORDER','--reduction-output','test-suite']
+RUN_COV_TEST = True
+#kaled 03.06.2020
+time_out_ms = 900 * 1000 # 100 seconds
+time_for_zipping_ms = 500 # the required time for zipping folder; Can Zero ??
 is_ctrl_c = False
 class MyTimeOutException(Exception):
     pass
@@ -104,6 +121,8 @@ def GetSH1ForFile(fil):
     return ''
 #20.05.2020
 def ZipDir(path, zip_file_name):
+    #return
+    os.makedirs(os.path.dirname(os.path.abspath(zip_file_name)), exist_ok=True)
     #RemoveFileIfExists(zip_file_name)
     zipf = zipfile.ZipFile(zip_file_name, 'w', zipfile.ZIP_DEFLATED)
     for root, dirs, files in os.walk(os.path.abspath(path)):
@@ -409,10 +428,9 @@ class TestCompMetadataGenerator(object):
             else:
                 ET.SubElement(root, property).text = self.metadata[property]
         
-        output = __testSuiteDir__ + "/metadata.xml"
-        ET.ElementTree(root).write(output)
-        with open(output, 'r') as original: data = original.read()
-        with open(output, 'w') as modified: modified.write('<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE test-metadata PUBLIC "+//IDN sosy-lab.org//DTD test-format test-metadata 1.0//EN" "https://sosy-lab.org/test-format/test-metadata-1.0.dtd">' + data)
+        ET.ElementTree(root).write(META_DATA_FILE)
+        with open(META_DATA_FILE, 'r') as original: data = original.read()
+        with open(META_DATA_FILE, 'w') as modified: modified.write('<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE test-metadata PUBLIC "+//IDN sosy-lab.org//DTD test-format test-metadata 1.0//EN" "https://sosy-lab.org/test-format/test-metadata-1.0.dtd">' + data)
 
 class TestCompGenerator(object):
     def __init__(self, nondetList):
@@ -453,6 +471,7 @@ def __getNonDetAssumptions__(witness, source):
 
 
 def createTestFile(witness, source):
+    if not os.path.isfile(witness) : return
     assumptions = __getNonDetAssumptions__(witness, source)
     TestCompGenerator(assumptions).writeTestCase(__testSuiteDir__ + "/testcase.xml")
     metadataParser = MetadataParser(witness)
@@ -537,13 +556,18 @@ def CompileFile(fil, include_dir = '.'):
     
 #29.05.2020
 def RunCovTest():
+    global toWorkSourceFile
     cov_test_exe_abs=os.path.abspath(COV_TEST_EXE)
     cov_test_cmd =[cov_test_exe_abs]
     cov_test_cmd.extend(COV_TEST_PARAMS)
     test_suite_dir_zip_abs=os.path.abspath(TEST_SUITE_DIR_ZIP)
     property_file_abs = os.path.abspath(property_file)
+    #05_06_2020
+    #if category_property == Property.cover_error_call:
+    #    benchmark_abs = os.path.abspath(toWorkSourceFile)
+    #else:
     benchmark_abs = os.path.abspath(benchmark)
-    cov_test_cmd.extend(['--test-suite' ,test_suite_dir_zip_abs , '--goal' ,property_file_abs , benchmark_abs])
+    cov_test_cmd.extend(['-'+str(arch),'--test-suite' ,test_suite_dir_zip_abs , '--goal' ,property_file_abs , benchmark_abs])
     print(' '.join(cov_test_cmd))
     p=subprocess.Popen(cov_test_cmd, stdout=subprocess.PIPE,stderr=subprocess.PIPE, cwd = INSTRUMENT_OUTPUT_DIR)
     while True:
@@ -830,10 +854,11 @@ def get_command_line(strat, prop, arch, benchmark, fp_mode):
         command_line += "--no-pointer-check --no-bounds-check --interval-analysis --no-slice "
     #16.05.2020
     elif prop == Property.cover_branches:
-        command_line += "--unwind 1000 --max-k-step 1000 --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
+        command_line += "--unwind 1000 --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
      #20.05.2020 + #03.06.2020 kaled: adding the option "--unlimited-k-steps" for coverage_error_call
     elif prop == Property.cover_error_call:
-        command_line += "--unlimited-k-steps --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
+        #kaled : 03.06.2020
+        command_line += "--unlimited-k-steps --no-pointer-check --no-bounds-check --interval-analysis --no-slice --no-align-check  "
     else:
         print ("Unknown property")
         exit(1)
@@ -844,15 +869,35 @@ def get_command_line(strat, prop, arch, benchmark, fp_mode):
 
     return command_line
 
-
+#22.06.2020
+def generate_metadata_from_witness(p_witness_file):
+    if not os.path.isfile(p_witness_file): return
+    metadataParser = MetadataParser(p_witness_file)
+    metadataParser.parse()
+    TestCompMetadataGenerator(metadataParser.metadata).writeMetadataFile()
+#22.06.2020
+def generate_testcase_from_assumption(p_test_case_file_full,p_inst_assumptions):
+    with open(p_test_case_file_full, 'w') as testcase_file:
+        testcase_file.write('<?xml version="1.0" encoding="UTF-8" standalone="no"?>')
+        testcase_file.write('<!DOCTYPE testcase PUBLIC "+//IDN sosy-lab.org//DTD test-format testcase 1.0//EN" "https://sosy-lab.org/test-format/testcase-1.0.dtd">')
+        testcase_file.write('<testcase>')
+        for nonDeterministicCall in p_inst_assumptions:
+            # if you want to print to std
+            #print(nonDeterministicCall)
+            testcase_file.write('<input>'+nonDeterministicCall.value +'</input>')
+        testcase_file.write('</testcase>')
+    
+    
 def verify(strat, prop, fp_mode):
     #29.05.2020
     global is_ctrl_c
+    goal_witness_file_full=''
+    inst_assumptions=[]
     # 16.05.2020
     if(prop == Property.cover_branches):
         try:
             run_without_output(' '.join([MY_INSTRUMENT_EXE_PATH, '--input',benchmark ,'--output', INSTRUMENT_OUTPUT_FILE , 
-                                  '--goal-output-file',INSTRUMENT_OUTPUT_GOALS_FILE,'--add-else','--add-labels',
+                                  '--goal-output-file',INSTRUMENT_OUTPUT_GOALS_FILE,'--add-else','--add-labels','--add-label-after-loop',
                                   '--compiler-args', '-I'+os.path.dirname(os.path.abspath(benchmark))]))
             IsTimeOut(True)
             #check if my_instrument worked
@@ -880,10 +925,15 @@ def verify(strat, prop, fp_mode):
             counter=0
             for i in range(1,goals_count+1):
                 #IsTimeOut(True)
+                #22.06.2020
+                inst_assumptions=[]
                 goal='GOAL_'+str(i)
                 goal_witness_file=goal+'.graphml'
-                goal_witness_file_full=os.path.join(INSTRUMENT_OUTPUT_DIR ,goal_witness_file) 
-                inst_new_esbmc_command_line = inst_esbmc_command_line + ' --witness-output ' + goal_witness_file_full + ' --error-label ' + goal + ' --timeout ' + str(time_per_goal_for_esbmc)+ 's ' + '-I'+os.path.dirname(os.path.abspath(benchmark))+' '
+                goal_witness_file_full=os.path.join(INSTRUMENT_OUTPUT_DIR ,goal_witness_file)
+                test_case_file_full=os.path.join(__testSuiteDir__,'testcase_'+str(i)+'.xml')
+                inst_new_esbmc_command_line = inst_esbmc_command_line + ' --witness-output ' + goal_witness_file_full + ' --error-label ' + goal \
+                                                + ' -I'+os.path.dirname(os.path.abspath(benchmark)) + ' ' \
+                                                # + ' --timeout ' + str(time_per_goal_for_esbmc)+ 's ' \
                 print('STARTING GOAL: '+goal)
                 #print('COMMAAND:'+inst_new_esbmc_command_line)
                 output = run(inst_new_esbmc_command_line)
@@ -891,28 +941,19 @@ def verify(strat, prop, fp_mode):
                 if not os.path.isfile(goal_witness_file_full):
                     print('Cannot run ESBMC for '+ goal)
                 else:
+                    if i==1:
+                        #22.06.2020
+                        generate_metadata_from_witness(goal_witness_file_full)
+                    
                     # it is only for __VERIFIER_nondet_int but not __VERIFIER_nondet_uint
                     inst_assumptions=__getNonDetAssumptions__(goal_witness_file_full,INSTRUMENT_OUTPUT_FILE)
-                    if i==1:
-                        metadataParser = MetadataParser(goal_witness_file_full)
-                        metadataParser.parse()
-                        TestCompMetadataGenerator(metadataParser.metadata).writeMetadataFile()
-                    
-                    inst_all_assumptions.append(inst_assumptions)
+                    #inst_all_assumptions.append(inst_assumptions)
                     if len(inst_assumptions)>0 :
                         goals_covered += 1                        
                         goals_covered_lst.append(goal)
-                        #29.05.2020
-                        with open(os.path.join(__testSuiteDir__,'testcase_'+str(i)+'.xml'), 'w') as testcase_file:
-                            testcase_file.write('<?xml version="1.0" encoding="UTF-8" standalone="no"?>')
-                            testcase_file.write('<!DOCTYPE testcase PUBLIC "+//IDN sosy-lab.org//DTD test-format testcase 1.0//EN" "https://sosy-lab.org/test-format/testcase-1.0.dtd">')
-                            testcase_file.write('<testcase>')
-                            for nonDeterministicCall in inst_assumptions:
-                                # if you want to print to std
-                                #print(nonDeterministicCall)
-                                testcase_file.write('<input>'+nonDeterministicCall.value +'</input>')            
-                            testcase_file.write('</testcase>')
-                    
+                        #22.06.2020
+                        generate_testcase_from_assumption(test_case_file_full,inst_assumptions)
+                   
             
             
             #here we write many testcases;we can write one
@@ -923,7 +964,21 @@ def verify(strat, prop, fp_mode):
             pass
         except KeyboardInterrupt:
             print('CTRL + C')
-            pass   
+            pass
+        #22.06.2020
+        if not os.path.isfile(META_DATA_FILE):
+            generate_metadata_from_witness(goal_witness_file_full)
+        
+        #22.06.2020
+        if os.path.isfile(goal_witness_file_full) and not os.path.isfile(test_case_file_full):
+            inst_assumptions=__getNonDetAssumptions__(goal_witness_file_full,INSTRUMENT_OUTPUT_FILE)
+            #inst_all_assumptions.append(inst_assumptions)
+            if len(inst_assumptions)>0 :
+                goals_covered += 1                        
+                goals_covered_lst.append(goal)
+                #22.06.2020
+                generate_testcase_from_assumption(test_case_file_full,inst_assumptions)          
+        
         #20.05.2020
         ZipDir(__testSuiteDir__ ,TEST_SUITE_DIR_ZIP)
         print('goals_count',goals_count)
@@ -949,11 +1004,13 @@ def verify(strat, prop, fp_mode):
     #20.05.2020
     if(prop == Property.cover_error_call):
         try:
+            global toWorkSourceFile
+            is_test_file_created=False
             run_without_output(' '.join([MY_INSTRUMENT_EXE_PATH, '--input',benchmark ,'--output', INSTRUMENT_OUTPUT_FILE , 
-                                  '--add-label-in-func','ERROR=reach_error','--compiler-args', '-I'+os.path.dirname(os.path.abspath(benchmark))]))
+                                  '--add-label-in-func','ERROR=reach_error',
+                                  '--compiler-args', '-I'+os.path.dirname(os.path.abspath(benchmark))]))
             IsTimeOut(True)     
             isInstrumentOK=True
-            toWorkSourceFile=''
             #check if my_instrument worked
             if not os.path.isfile(INSTRUMENT_OUTPUT_FILE):
                 print("Cannot instrument the file.")
@@ -969,6 +1026,7 @@ def verify(strat, prop, fp_mode):
             esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(os.path.abspath(benchmark))+ ' '
             if isInstrumentOK:
                 esbmc_command_line+= ' --error-label ERROR '
+                pass
                 
             #29.05.2020
             # what is the suitable time for us and ESBMC ??
@@ -987,13 +1045,16 @@ def verify(strat, prop, fp_mode):
                 return res
             IsTimeOut(True)
             createTestFile(witness_file_name,toWorkSourceFile)
+            is_test_file_created=True
         
         except MyTimeOutException as e:
             print('Timeout !!!')
             pass
         except KeyboardInterrupt:
             print('CTRL + C')
-            pass  
+            pass
+        #22.06.2020
+        if not is_test_file_created: createTestFile(witness_file_name,toWorkSourceFile)
         ZipDir(__testSuiteDir__ ,TEST_SUITE_DIR_ZIP)
         if RUN_COV_TEST:
             RunCovTest() 
@@ -1028,6 +1089,8 @@ parser.add_argument("-v", "--version",help="Prints ESBMC's version", action='sto
 parser.add_argument("-p", "--propertyfile", help="Path to the property file")
 parser.add_argument("benchmark", nargs='?', help="Path to the benchmark")
 parser.add_argument("-s", "--strategy", help="ESBMC's strategy",choices=["kinduction", "falsi", "incr"], default="incr")
+parser.add_argument("-z", "--zip_path", help="the tesuite Zip file to generate", default=TEST_SUITE_DIR_ZIP)
+
 #29.05.2020
 parser.add_argument("-t", "--timeout", help="time out millisecond",type=float, default=time_out_ms)
 args = parser.parse_args()
@@ -1053,6 +1116,9 @@ if not args.timeout is None :
 time_out_ms -= time_for_zipping_ms
 print('time_out_ms',time_out_ms)
 
+if not args.zip_path is None :
+    TEST_SUITE_DIR_ZIP = args.zip_path
+
 # Parse property files
 f = open(property_file, 'r')
 property_file_content = f.read()
@@ -1076,6 +1142,12 @@ else:
     print ("Unsupported Property") 
     exit(1)
 
+#TEST_SUITE_DIR_ZIP_PA='./results-verified/test-comp20_prop-coverage-branches.'+os.path.basename(benchmark)
+#if not os.path.isdir(TEST_SUITE_DIR_ZIP_PA):
+#    os.makedirs(TEST_SUITE_DIR_ZIP_PA)
+#TEST_SUITE_DIR_ZIP=TEST_SUITE_DIR_ZIP_PA+'/test-suite.zip'
+ 
+#print('VARRRRRR',os.environ)
 # 16.05.2020
 #20.05.2020
 if  category_property == Property.cover_branches or category_property == Property.cover_error_call:
@@ -1084,8 +1156,10 @@ if  category_property == Property.cover_branches or category_property == Propert
     RemoveFileIfExists(INSTRUMENT_OUTPUT_GOALS_FILE)
     MakeFolderEmptyORCreate(INSTRUMENT_OUTPUT_GOALS_DIR)
     MakeFolderEmptyORCreate(__testSuiteDir__)
+    
     #20.05.2020
     RemoveFileIfExists(TEST_SUITE_DIR_ZIP)
+    
     if not os.path.isfile(MY_INSTRUMENT_EXE_PATH) and category_property == Property.cover_branches:
         print("my_instrument cannot be found..")
         exit(1)
@@ -1101,6 +1175,7 @@ if  category_property == Property.cover_branches or category_property == Propert
     #    ass.debugInfo()
     #sourceCodeChecker=SourceCodeChecker('/home/kaled/sdb1/my_wrapper/my_instrument_outpt/instrumrnted.c',assumptionParser.assumptions)
     #exit(1)
+
 
 result = verify(strategy, category_property, False)
 print (get_result_string(result))
