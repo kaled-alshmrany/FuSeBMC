@@ -68,11 +68,13 @@ Note: all the outputs in the folders are based on the experiment on the file "ra
 <br /><br />
 If you want to run the tool on the benchmark of the competition "Test-Comp20", you need to put the files "competitions files" in the same directory:
 
-1- TestCove from https://gitlab.com/sosy-lab/test-comp/archives-2020/raw/testcomp20/2020/val_testcov.zip
+1- ESBMC from https://github.com/esbmc/esbmc/releases/latest/download/ESBMC-Linux.sh
 
-2- benchexec version 2.7
+2- TestCove from https://gitlab.com/sosy-lab/test-comp/archives-2020/raw/testcomp20/2020/val_testcov.zip
 
-3- sv-benchmarks from https://github.com/sosy-lab/sv-benchmarks/tree/testcomp20/
+3- benchexec version 2.7
+
+4- sv-benchmarks from https://github.com/sosy-lab/sv-benchmarks/tree/testcomp20/
 
 <br /><br />
 
