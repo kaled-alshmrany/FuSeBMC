@@ -9,6 +9,8 @@ A tool based on ESBMC that can label all the goals in the target C code. Also, i
         Clang 6.0
   
         llvm 6.0.0
+        
+        Python 3.6.0
 
 <br /><br />
 
@@ -25,7 +27,7 @@ A tool based on ESBMC that can label all the goals in the target C code. Also, i
 How to run it:
 
 
-./esbmc-wrapper.py -p ./properties/coverage-branches.prp -s incr ./examples/rangesum10.i
+./FuSeBMC-wrapper.py -p ./properties/coverage-branches.prp -s incr ./examples/rangesum10.i
 
 
 <br /><br />
