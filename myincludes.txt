@@ -1,6 +1,5 @@
-/home/kaled/Downloads/clang_base/lib/clang/6.0.0/include
+/home/kaled/Downloads/clang_base/lib/clang/6.0.0/include  "the path of clang"
 /usr/include
 /usr/include/linux
 /usr/include/c++/8/tr1
 /usr/include/c++/8
-/home/kaled/Desktop/2020-my-projects/experment_10_02_2020/uFTP/library
