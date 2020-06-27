@@ -3,7 +3,7 @@ LLVM_BASE = /mnt/sda2/llvm-6.0.0
 CXX = $(CLANG_BASE)/bin/clang++
 #CXX= clang++
 CXXFLAGS = -Wall -Wextra -W -std=c++11 -I./include
-CXXFLAGS += -I$(CLANG_BASE)/include -I$(LLVM_BASE)/include  -fno-rtti -Wno-unsequenced -Wno-unused-parameter
+CXXFLAGS += -I$(CLANG_BASE)/include -I$(LLVM_BASE)/include  -fno-rtti  -Wno-unsequenced -Wno-unused-parameter
 LDFLAGS = -L$(CLANG_BASE)/lib -L$(LLVM_BASE)/lib
 LDLIBS = -lclangFrontend -lclangParse -lclangSema -lclangEdit -lclangAnalysis -lclangAST -lclangLex -lclangBasic -lclangDriver \
 		-lclangSerialization -lpthread -lclangRewrite -lLLVMOption -lLLVMProfileData -lLLVMMCParser -lLLVMMC -lLLVMBitReader -lLLVMCore -lLLVMBinaryFormat -lLLVMSupport
