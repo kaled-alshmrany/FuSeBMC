@@ -90,7 +90,8 @@ bool MyASTConsumer2::HandleTopLevelDecl(DeclGroupRef d)
 void usage(char * prog)
 {
     std::cout << prog <<" --input inp --output outpt [-h|--help] [--goal-output-file file] [--show-parse-tree] "<<std::endl;
-    std::cout <<"\t\t\t\t [--goal-pro-func-output-dir dir] [--add-else] [--add-labels] [--add-goal-at-end-of-func] " << std::endl;
+    std::cout <<"\t\t\t\t [--goal-pro-func-output-dir dir] [--add-else] [--add-labels] " << std::endl;
+    std::cout <<"\t\t\t\t [--add-label-after-loop] [--add-goal-at-end-of-func] " << std::endl;
     std::cout<<"\t\t\t\t[--add-label-in-func lbl_func pairs] [--compiler-args][..][..]"<<std::endl;
     std::cout << "--help|-h\t\tShow the usage."<<std::endl;
     std::cout << "--input inp\t\tThe C input source file to be instrumented"<<std::endl;
@@ -101,6 +102,7 @@ void usage(char * prog)
     std::cout<<"\t\t\t\tthat includes the goals in  this function, these generated files will be stored in this directory."<<std::endl;
     std::cout << "--add-else\t\tAdd 'Else' statement if not exits."<<std::endl;
     std::cout << "--add-labels\t\tAdd labels in statements(if,else,while,for...)."<<std::endl;
+    std::cout << "--add-label-after-loop\t\tAdd label after (while,for,do_while,for c++)."<<std::endl;
     std::cout << "--add-goal-at-end-of-func\t\tA Goal will be added at the end of each function (or before 'return')"<<std::endl;    
     std::cout << "--add-label-in-func lbl_func pairs\t\tAdd one label in the corresponding function: lbl1=func1,lbl2=func2"<<std::endl;    
     std::cout << "--compiler-args\t\tThe next arguments will be passed to the compiler."<<std::endl;
@@ -241,6 +243,10 @@ int main(int argc, char **argv)
       {
           myOptions->addLabels = true;
       }
+      else if(strcmp(the_arg,"--add-label-after-loop")==0)
+      {
+          myOptions->addLabelAfterLoop = true;
+      }
       else if(strcmp(the_arg,"--add-goal-at-end-of-func")==0)
       {
           myOptions->addGoalAtEndOfFunc = true;
@@ -285,6 +291,8 @@ int main(int argc, char **argv)
   std::cout <<"myOptions->addGoalAtEndOfFunc=" << myOptions->addGoalAtEndOfFunc << std::endl;
   std::cout <<"myOptions->showParseTree=" << myOptions->showParseTree << std::endl;
   std::cout <<"myOptions->addLabelInFunc=" << myOptions->addLabelInFunc << std::endl;
+  std::cout <<"myOptions->addLabels=" << myOptions->addLabels << std::endl;
+  std::cout <<"myOptions->addLabelAfterLoop=" << myOptions->addLabelAfterLoop << std::endl;
   for (auto const& map_elem : myOptions->funcLabelMap)
   {
       std::cout << map_elem.first  << ':' << map_elem.second << std::endl ;
