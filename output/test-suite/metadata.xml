@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE test-metadata PUBLIC "+//IDN sosy-lab.org//DTD test-format test-metadata 1.1//EN" "https://sosy-lab.org/test-format/test-metadata-1.1.dtd">
+<test-metadata>
+  <sourcecodelang>C</sourcecodelang>
+  <producer>testcov testcomp20-40-g2b78172</producer>
+  <specification>COVER( init(main()), FQL(COVER EDGES(@DECISIONEDGE)) )</specification>
+  <programfile>sv-benchmarks/c/array-examples/data_structures_set_multi_proc_ground-1.i</programfile>
+  <programhash>7e7d77a924caa48bedf23c17178d4bb74e8a8bd7</programhash>
+  <entryfunction>main</entryfunction>
+  <architecture>32bit</architecture>
+  <inputtestsuitefile>./results-verified/test-comp20_prop-coverage-branches/data_structures_set_multi_proc_ground-1.yml/result-verified/test-suite.zip</inputtestsuitefile>
+  <inputtestsuitehash>8d4c274051542b5295e34619de2d37f5fd347ecd</inputtestsuitehash>
+  <creationtime>2020-06-27 21:40:19.296886</creationtime>
+</test-metadata>
