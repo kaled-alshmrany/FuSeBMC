@@ -46,11 +46,13 @@ extern MyOptions * myOptions;
     int V_counter =0 ;
     #define GET_LINE() "\n/*B_"+std::to_string(__LINE__)+"_("+ std::to_string(++V_counter) +")"+"*/\n"
     #define GET_LINE_E() "\n/*E_"+std::to_string(__LINE__)+"_("+ std::to_string(V_counter) +")"+"*/\n"
+    #define D(x) std::string(x)
 #else
     #define GET_LINE() std::string("")
     #define GET_LINE_E() std::string("")
+    #define D(x) std::string("")
 #endif
-
+#define LOG(x) std::cout <<  #x" = "  << x << "   LINE=" << __LINE__ << std::endl;
 bool MyVisitor::TraverseDecl(Decl* decl)
   {
       //llvm::outs() << "TTTTTTTT";
@@ -113,7 +115,7 @@ bool MyVisitor::TraverseDecl(Decl* decl)
 }
   */
   
-  bool MyVisitor::checkStmt(Stmt *S,SourceLocation InitialLoc, SourceLocation EndLocHint, InstrumentOption instrumentOption) 
+  bool MyVisitor::checkStmt(Stmt *S,SourceLocation InitialLoc, SourceLocation EndLocHint, InstrumentOption instrumentOption,bool isIfIfOrElseIf) 
   {
   // 1) If there's a corresponding "else" or "while", the check inserts "} "
   // right before that token.
@@ -136,12 +138,16 @@ bool MyVisitor::TraverseDecl(Decl* decl)
       CompoundStmt * compoundStmt = cast<CompoundStmt>(S);
       if(myOptions->addLabels)
           TheRewriter.InsertTextAfter(compoundStmt->getLBracLoc().getLocWithOffset(1),
-              (hasOneCompoundChild(compoundStmt)? "" : GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString()))
+              (isIfIfOrElseIf? "" : GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString()))
       );
       //16.05.2020
       if(instrumentOption == InstrumentOption::MUST_INSERT_ELSE && myOptions->addElse)
-          TheRewriter.InsertTextBefore(compoundStmt->getRBracLoc().getLocWithOffset(1),GET_LINE()+"\nelse\n {"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"}"+GET_LINE_E());       
-           
+          TheRewriter.InsertTextBefore(compoundStmt->getRBracLoc().getLocWithOffset(1),
+                  GET_LINE()+"\nelse\n {"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"}"+GET_LINE_E());       
+       
+      if(instrumentOption == InstrumentOption::PARENT_IS_LOOP && myOptions->addLabelAfterLoop)
+        TheRewriter.InsertTextBefore(compoundStmt->getRBracLoc().getLocWithOffset(1),
+                      GET_LINE()+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+GET_LINE_E());
       return false;
       /*bool isDone=false;
       SourceLocation LParenLoc =forwardSkipWhitespaceAndComments(S->getLocStart(), SM, Context);
@@ -199,14 +205,14 @@ bool MyVisitor::TraverseDecl(Decl* decl)
   if (EndLocHint.isValid())
   {
       EndLoc = EndLocHint;
-      ClosingInsertion = "\n/*A*/}\n";
+      ClosingInsertion = "\n"+D("/*A*/")+"}\n";
       //TheRewriter.InsertTextAfter(EndLoc,ClosingInsertion);
   } 
   else 
   {
       const auto FREnd = FileRange.getEnd().getLocWithOffset(-1);
       EndLoc = findEndLocation(FREnd, SM, Context);
-      ClosingInsertion = "\n/*B*/}\n";
+      ClosingInsertion = "\n"+D("/*B*/")+"}\n";
       //TheRewriter.InsertTextAfter(EndLoc,ClosingInsertion);
   }
   assert(StartLoc.isValid());
@@ -216,43 +222,54 @@ bool MyVisitor::TraverseDecl(Decl* decl)
   //auto Diag = diag(StartLoc,"statement should be inside braces");
   //Diag << FixItHint::CreateInsertion(StartLoc, " {")
   //     << FixItHint::CreateInsertion(EndLoc, ClosingInsertion);
-  if(myOptions->addLabels) TheRewriter.InsertTextAfter(StartLoc,GET_LINE()+"\n{\n" +
-  ((hasOneCompoundChild(S)?"" : GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())))
-  
-  + GET_LINE_E());
+  if(myOptions->addLabels)
+      TheRewriter.InsertTextAfter(StartLoc,GET_LINE()+"\n{\n" +
+        ((isIfIfOrElseIf?"" : GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())))+ GET_LINE_E());
   if(instrumentOption == InstrumentOption::MUST_INSERT_ELSE && myOptions->addElse)
   {
       TheRewriter.InsertTextBefore(EndLoc,GET_LINE()+ClosingInsertion+"else \n{"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"}"+GET_LINE_E());
   }
+  
   else 
   {
 #ifdef MYDEBUG
       //std::cout << "LINE:"<< EndLoc.printToString(SM) << " V_counter:" << V_counter << std::endl;
 #endif
-      if(myOptions->addLabels) TheRewriter.InsertTextBefore(EndLoc,GET_LINE()+ClosingInsertion+GET_LINE_E());
+      if(myOptions->addLabels)
+      {
+           if(instrumentOption == InstrumentOption::PARENT_IS_LOOP && myOptions->addLabelAfterLoop)
+               ClosingInsertion += D("/*C*/")+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString());
+          TheRewriter.InsertTextBefore(EndLoc,GET_LINE()+ClosingInsertion+GET_LINE_E());
+      }
   }
+   
   return true;
 }
  void MyVisitor::check(Stmt * S)
  {
      const SourceManager &SM = *(TheHolder.SourceManager);
      const ASTContext *Context = TheHolder.ASTContext;
-
+     
+     
     // Get location of closing parenthesis or 'do' to insert opening brace.
     if (isa<ForStmt>(S))
     {
         ForStmt *forStmt = cast<ForStmt>(S);
-        checkStmt(forStmt->getBody(),forStmt->getRParenLoc());
+        checkStmt(forStmt->getBody(),forStmt->getRParenLoc(),SourceLocation(),InstrumentOption::PARENT_IS_LOOP,false);
     }
     else if (isa<CXXForRangeStmt>(S))
     {
         CXXForRangeStmt * cXXForRangeStmt=cast<CXXForRangeStmt>(S);
-        checkStmt(cXXForRangeStmt->getBody(), cXXForRangeStmt->getRParenLoc());
+        checkStmt(cXXForRangeStmt->getBody(), cXXForRangeStmt->getRParenLoc(),SourceLocation(),InstrumentOption::PARENT_IS_LOOP,false);
     }
     else if (isa<DoStmt>(S))
     {
+        /**do {} while(x);*/
         DoStmt * doStmt=cast<DoStmt>(S);
-        checkStmt(doStmt->getBody(), doStmt->getDoLoc(), doStmt->getWhileLoc());
+        SourceLocation locSemi= forwardSkipWhitespaceAndCommentsUntilSemi(doStmt->getWhileLoc(),SM,Context);
+        if(locSemi.isValid())
+            TheRewriter.InsertTextBefore(locSemi.getLocWithOffset(1),GET_LINE()+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+GET_LINE_E());
+        checkStmt(doStmt->getBody(), doStmt->getDoLoc(), doStmt->getWhileLoc(),InstrumentOption::STMT_OPTION_NONE,false);
     } 
     else if (isa<WhileStmt>(S))
     {
@@ -260,10 +277,11 @@ bool MyVisitor::TraverseDecl(Decl* decl)
         SourceLocation StartLoc = findRParenLoc(whileStmt, SM, Context);
         if (StartLoc.isInvalid())
             return;
-      checkStmt(whileStmt->getBody(), StartLoc);
+      checkStmt(whileStmt->getBody(), StartLoc , SourceLocation() ,InstrumentOption::PARENT_IS_LOOP , false);
     } 
     else if(isa<IfStmt>(S))
     {
+       
         IfStmt * ifStmt = cast<IfStmt>(S);
         SourceLocation StartLoc = findRParenLoc(ifStmt, SM, Context);
         if (StartLoc.isInvalid())
@@ -272,13 +290,16 @@ bool MyVisitor::TraverseDecl(Decl* decl)
         //    ForceBracesStmts.insert(ifStmt->getThen());
         
         Stmt *Else = ifStmt->getElse();
-        
+        Stmt *Then = ifStmt->getThen();
+        bool isIfIf =isa<IfStmt>(Then) || isCompoundWithOneIf(Then);
         //if(Else && !isa<IfStmt>(Else))
         if (Else) 
         {
+            // We must check here (can without Else)
+            bool isElseIf =isa<IfStmt>(Else) || isCompoundWithOneIf(Else);
             // Omit 'else if' statements here, they will be handled directly.
-            checkStmt(ifStmt->getThen(), StartLoc, ifStmt->getElseLoc(),InstrumentOption::STMT_OPTION_NONE );
-            checkStmt(Else, ifStmt->getElseLoc(), SourceLocation());
+            checkStmt(Then, StartLoc, ifStmt->getElseLoc(),InstrumentOption::STMT_OPTION_NONE , isIfIf);
+            checkStmt(Else, ifStmt->getElseLoc(), SourceLocation(),InstrumentOption::STMT_OPTION_NONE , isElseIf);
         }
         else
         {
@@ -286,7 +307,9 @@ bool MyVisitor::TraverseDecl(Decl* decl)
             //ifStmt->getThen()->getLocEnd()
             //std::cout << SM.getCharacterData(ifStmt->getThen()->getLocEnd()) << std::endl;
             //TheRewriter.InsertTextAfter(ifStmt->getThen()->getLocEnd().getLocWithOffset(1),"else {houssam"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"}");
-            checkStmt(ifStmt->getThen(), StartLoc, ifStmt->getElseLoc(),InstrumentOption::MUST_INSERT_ELSE);
+            
+            
+            checkStmt(Then, StartLoc, ifStmt->getElseLoc(),InstrumentOption::MUST_INSERT_ELSE , isIfIf);
             
         }
     }
@@ -380,7 +403,22 @@ SourceLocation MyVisitor::findRParenLoc(const IfOrWhileStmt *S,const SourceManag
          Loc = Lexer::getLocForEndOfToken(Loc, 0, SM, Context->getLangOpts());
      }
 }
- 
+
+ SourceLocation MyVisitor::forwardSkipWhitespaceAndCommentsUntilSemi(SourceLocation Loc,const SourceManager &SM,const ASTContext *Context) 
+ {
+     assert(Loc.isValid());
+     for (;;) 
+     {
+         while (isWhitespace(*FullSourceLoc(Loc, SM).getCharacterData()))
+             Loc = Loc.getLocWithOffset(1);
+         tok::TokenKind TokKind = getTokenKind(Loc, SM, Context);
+         if (TokKind == tok::NUM_TOKENS || TokKind != tok::comment)
+             if(TokKind == tok::semi)
+                 return Loc;
+         // Fast-forward current token.
+         Loc = Lexer::getLocForEndOfToken(Loc, 0, SM, Context->getLangOpts());
+     }
+}
 SourceLocation MyVisitor::findEndLocation(SourceLocation LastTokenLoc,const SourceManager &SM,const ASTContext *Context) 
 {
     SourceLocation Loc = LastTokenLoc;
@@ -536,22 +574,88 @@ bool isLabelExistsInStement(Stmt * s , std::string & lbl)
     }
     return false;
   }
+/**
+ * Not used ...
+ */
 bool hasOneCompoundChild(Stmt * s)
 {
-    /*unsigned int count =0;
+    
+    // Else if child  of If,
+    bool isIf = s && isa<IfStmt>(s);
+    
+    unsigned int count =0;
+    Stmt * child = nullptr;
     for (Stmt::child_iterator i = s->child_begin(), e = s->child_end(); i != e; ++i)
     {
+        Stmt * ii = *i;
+        if(!ii) continue;
+        
+        if(isa<NullStmt>(ii)) continue;
+        if(isa<ImplicitCastExpr>(ii)) continue;
+        if(isIf)
+        {
+            IfStmt * ifStmt =cast<IfStmt>(s);
+            Stmt * Else = ifStmt->getElse();
+            if(Else && Else == ii) continue;
+        }
         count++;
+        child = ii;
+#ifdef MYDEBUG
+        std::cout << "CHILD -->" << count <<std::endl;
+        //std::cout << typeid(*i).name() << std::endl;
+        i->dumpColor();
+        std::cout << "-----------------------" << std::endl;
+#endif
     }
     if(count==1)
     {
-        Stmt * child= *(s->child_begin());
-         if(isa<IfStmt>(child) || isa<ForStmt>(child) || isa<WhileStmt>(child) || isa<CXXForRangeStmt>(child)
+        //Stmt * child= *(s->child_begin());
+        //if(child ) 
+        if(isa<IfStmt>(child) || isa<ForStmt>(child) || isa<WhileStmt>(child) || isa<CXXForRangeStmt>(child)
                  || isa<SwitchStmt>(child) || isa<DoStmt>(child))
+         {
+#ifdef MYDEBUG
+             std::cout << "Statement has one child: YES -->" << count <<std::endl;
+             s->dumpColor();
+             std::cout << "-----------------------" << std::endl;
+#endif
              return true;
+         }
         
     }
+
+#ifdef MYDEBUG
+             std::cout << "Statement has one child: NO -->" << count << std::endl;
+             s->dumpColor();
+             std::cout << "-----------------------" << std::endl;
+#endif
     return false;
-*/
+
+    
+}
+/**
+ * if(x){if(x);}  or if(x);else{if(x);}
+ */
+bool isCompoundWithOneIf(Stmt * s)
+{
+    if(!isa<CompoundStmt>(s))
+        return false;
+    int counter=0;
+    Stmt * lastNotNullChild = nullptr;
+    CompoundStmt * compoundStmt=cast<CompoundStmt>(s);
+    for (Stmt::child_iterator i = compoundStmt->child_begin(), e = compoundStmt->child_end(); i != e; ++i)
+    {
+        Stmt * child = *i;
+        if(!child) continue;
+        if(isa<NullStmt>(child)) continue;
+        //if(isa<IfStmt>(child))
+        counter++;
+        lastNotNullChild = child;
+        
+    }
+    if(!lastNotNullChild)
+        return false;
+    if(counter ==1 && isa<IfStmt>(lastNotNullChild)) 
+        return true;
     return false;
 }
