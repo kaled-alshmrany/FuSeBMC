@@ -1,8 +1,8 @@
 # FuSeBMC
-* A tool based on ESBMC that can label all the goals in the target C code. Also, it can produce the graph file and then the XML files that we can use later to get the counterexamples values.
+* A tool based on ESBMC that can analyze and inject labels "goals" in the target C code. Also, it can produce the graph file and then the XML files that we can use later to get the counterexamples values.
 * FuSeBMC can participate in a competition such as "Test-Comp20" and compare the results with state-of-the-art testing tools.
 * FuSeBMC can analyze the target file and then put the labels "GOAL_#" in this target file so the tool after can use it to produce the counterexample that will reach us to that line in the code.
-* FuSeBMC can help us to get the counterexamples for each path in the target file because of the method I used in the tool.
+* FuSeBMC can help us to get the counterexamples for each path in the target file because of their effective method used in the tool.
 * FuSeBMC uses several technics such as Fuzzing and BMC.
 * FuSeBMC is now able to participate in the categories "Cover-Branches" and "Cover-error" in the competition "Test-Comp20".
   <br /><br />  <br />
@@ -80,7 +80,7 @@ If you want to run the tool on the benchmark of the competition "Test-Comp20", y
 
 
 
-* The output of the tool will be in the folder "my_instrument_outpt". You will have these files as follows:
+* The output of the tool will be in the folder "wrapper-output". You will have these files under the folder "my_instrument_outpt" as follows:
 
       1- File called "instrumented.c" which has the input file + the goals labels written on the input code.<br />
       2- File called "my_goal.txt" has the number of goals.<br />
