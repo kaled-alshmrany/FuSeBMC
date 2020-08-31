@@ -6,4 +6,4 @@
 #sudo chmod o+wt /sys/fs/cgroup/blkio/ /sys/fs/cgroup/cpu,cpuacct/ /sys/fs/cgroup/freezer/ /sys/fs/cgroup/memory/user.slice/user-1000.slice/session-1.scope
 #benchexec ./esbmc-falsi.xml --timelimit 900s --tasks ReachSafety-Arrays --limitCores 1 --numOfThreads 1 --no-container --full-access-dir / --hidden-dir /home --hidden-dir  ./results-verified -d --no-compress-results
 #benchexec ./esbmc-fusebmc.xml --timelimit 900s --tasks ReachSafety-Arrays --limitCores 1 --numOfThreads 1 --no-container --full-access-dir / --hidden-dir /home --hidden-dir  ./results-verified -d --no-compress-results
-benchexec ./esbmc-fusebmc.xml --timelimit 900s --tasks ReachSafety-Arrays --limitCores 1 --numOfThreads 1 --no-container --no-compress-results
+benchexec ./esbmc-fusebmc.xml --timelimit 900s --tasks ReachSafety-Floats --limitCores 1 --numOfThreads 1 --no-container --no-compress-results
