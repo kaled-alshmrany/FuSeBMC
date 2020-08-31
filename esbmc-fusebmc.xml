@@ -1,34 +1,21 @@
 <?xml version="1.0"?>
 <!DOCTYPE benchmark PUBLIC "+//IDN sosy-lab.org//DTD BenchExec benchmark 1.18//EN" "https://www.sosy-lab.org/benchexec/benchmark-1.18.dtd">
-<benchmark tool="testcov" displayName="TestCov" timelimit="5 h" hardtimelimit="315 min" memlimit="7 GB" cpuCores="2">
+<benchmark tool="esbmc" displayName="ESBMC-falsif" timelimit="15 min" memlimit="15 GB" cpuCores="8">
 
-  <!--  require cpuModel="Intel Xeon E3-1230 v5 @ 3.40 GHz" cpuCores="2"/ -->
-
-  <resultfiles>**output/**</resultfiles>
+  <!-- require cpuModel="Intel Xeon E3-1230 v5 @ 3.40 GHz" cpuCores="2"/ -->
+<!--  change the path of the data -->
+<!--  change mmemory from 15 GB to 4; cores = 2 in line3 -->
+  <resultfiles>./result-verified</resultfiles>
   
-  <option name="--no-runexec"/>
-  <option name="--no-isolation"/>  
-  
-  <!-- Limits per individual test run -->
-  <option name="--memlimit">6GB</option>
-  <option name="--timelimit-per-run">3</option> <!-- seconds -->
-  <!-- Don't limit cpu cores within existing cpu-core limit -->
-  <option name="--cpu-cores">0</option>
-
-  <option name="--verbose" />
-  <option name="--no-plots" />
-  <option name="--reduction">BY_ORDER</option>
-  <option name="--reduction-output">test-suite</option>
+  <option name="-s">incr</option>
 
   <rundefinition name="test-comp20_prop-coverage-error-call">
-    <requiredfiles>./results-verified/${rundefinition_name}/${taskdef_name}/result-verified/test-suite.zip</requiredfiles>
-    <option name="--test-suite">/results-verified/${rundefinition_name}/${taskdef_name}/result-verified/test-suite.zip</option>
+   	<option name="--zip_path">./results-verified/${rundefinition_name}/${taskdef_name}/result-verified/test-suite.zip</option>
     <propertyfile>/data/sv-benchmarks/c/properties/coverage-error-call.prp</propertyfile>
   </rundefinition>
   
   <rundefinition name="test-comp20_prop-coverage-branches">
-    <requiredfiles>./results-verified/${rundefinition_name}/${taskdef_name}/result-verified/test-suite.zip</requiredfiles>
-    <option name="--test-suite">./results-verified/${rundefinition_name}/${taskdef_name}/result-verified/test-suite.zip</option>
+   <option name="--zip_path">./results-verified/${rundefinition_name}/${taskdef_name}/result-verified/test-suite.zip</option>
     <propertyfile>/data/sv-benchmarks/c/properties/coverage-branches.prp</propertyfile>
   </rundefinition>
 
@@ -62,28 +49,22 @@
 
   <tasks name="SoftwareSystems-BusyBox-MemSafety">
     <includesfile>/data/sv-benchmarks/c/SoftwareSystems-BusyBox-MemSafety.set</includesfile>
-    <option name="-64"/>
+    <option name="--arch">64</option>
   </tasks>
 
   <tasks name="SoftwareSystems-DeviceDriversLinux64-ReachSafety">
     <includesfile>/data/sv-benchmarks/c/SoftwareSystems-DeviceDriversLinux64-ReachSafety.set</includesfile>
-    <option name="-64"/>
+    <option name="--arch">64</option>
   </tasks>
 
   <tasks name="SoftwareSystems-SQLite-MemSafety">
     <includesfile>/data/sv-benchmarks/c/SoftwareSystems-SQLite-MemSafety.set</includesfile>
-    <option name="-64"/>
+    <option name="--arch">64</option>
   </tasks>
 
   <tasks name="Termination-MainHeap">
     <includesfile>/data/sv-benchmarks/c/Termination-MainHeap.set</includesfile>
+    <option name="--arch">64</option>
   </tasks>
-
-
-  <columns>
-    <column title="branches_covered">DEBUG:root:Accumulated coverage:</column>
-    <column title="branches_total">Number of goals</column>
-  </columns>
-
+  
 </benchmark>
-
