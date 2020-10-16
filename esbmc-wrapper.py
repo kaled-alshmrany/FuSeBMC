@@ -69,7 +69,7 @@ MUST_APPLY_TIME_PER_GOAL = True
 
 
 EXTRA_TESTCASE_COUNT = 4
-IsMetaDataGenerated=False
+IsMetaDataGenerated=True
 
 # strings
 esbmc_path = "./esbmc "
@@ -105,8 +105,8 @@ C_COMPILER = 'gcc'
 #kaled 03.06.2020
 #COV_TEST_PARAMS= ['--no-runexec','--use-gcov','--cpu-cores','0', '--verbose', '--no-plots','--reduction','BY_ORDER','--reduction-output','test-suite']
 #COV_TEST_PARAMS= ['--no-runexec', '--no-isolation', '--memlimit', '6GB', '--timelimit-per-run', '3', '--cpu-cores', '0', '--verbose', '--no-plots','--reduction', 'BY_ORDER','--reduction-output','test-suite']
-COV_TEST_PARAMS= ['--memlimit', '6GB','--timelimit-per-run', '3', '--cpu-cores', '0','--verbose','--no-plots','--reduction', 'BY_ORDER', '--reduction-output','test-suite']
-RUN_COV_TEST = True
+COV_TEST_PARAMS= ['--no-runexec','--memlimit', '6GB','--timelimit-per-run', '3', '--cpu-cores', '0','--verbose','--no-plots','--reduction', 'BY_ORDER', '--reduction-output','test-suite']
+RUN_COV_TEST = False
 #kaled 03.06.2020
 time_out_ms = 950 * 1000 # 100 seconds
 time_for_zipping_ms = 500 # the required time for zipping folder; Can Zero ??
