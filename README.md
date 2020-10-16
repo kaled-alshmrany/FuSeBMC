@@ -1,4 +1,7 @@
 # FuSeBMC
+  FuSeBMC that combines FUzzing with Symbolic Execution via Bounded Model Checking to detect security vulnerabilities in C programs. FuSeBMC builds on top of ESBMC as a state-of-the-art BMC engine. In particular, FuSeBMC uses two approaches for verifying security vulnerabilities in C programs. The first one is based on bounded model checking (BMC) techniques. BMC evaluates branch sides and merges states after that branch to build one logical formula expressed in a fragment of first-order theories and check the resulting formula using Boolean Satisfiability (SAT) or Satisfiability Modulo Theories (SMT) solvers. The second one exploits coverage-guided fuzzing to produce random inputs to locate security vulnerabilities in C programs. FuSeBMC relies on efficient bounded model checking techniques; it can also handle two main features in software testing: code coverage and bug detection.
+
+
 * A tool based on ESBMC that can analyze and inject labels "goals" in the target C code. Also, it can produce the graph file and then the XML files that we can use later to get the counterexamples values.
 * FuSeBMC can participate in a competition such as "Test-Comp20" and compare the results with state-of-the-art testing tools.
 * FuSeBMC can analyze the target file and then put the labels "GOAL_#" in this target file so the tool after can use it to produce the counterexample that will reach us to that line in the code.
@@ -9,7 +12,7 @@
 
  * Requrments to use the tool:
  
-        ESBMC 6.2
+        ESBMC 6.4
   
         Clang 6.0
   
