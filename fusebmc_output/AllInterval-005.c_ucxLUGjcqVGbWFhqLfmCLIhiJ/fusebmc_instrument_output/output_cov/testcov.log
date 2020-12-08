@@ -1,0 +1,50 @@
+2020-12-08 08:17:17 DEBUG    Looking for tests in /home/kaled/Documents/test-comp21-files/FuSeBMC_v3.6.6/fusebmc_output/AllInterval-005.c_ucxLUGjcqVGbWFhqLfmCLIhiJ/test-suite.zip
+2020-12-08 08:17:17 DEBUG    Considering testcase_1_ES.xml
+2020-12-08 08:17:17 DEBUG    File testcase_1_ES.xml is valid testcase
+2020-12-08 08:17:17 DEBUG    gcc -m32 -E /home/kaled/Documents/test-comp21-files/FuSeBMC_v3.6.6/fusebmc_output/AllInterval-005.c_ucxLUGjcqVGbWFhqLfmCLIhiJ/AllInterval-005.c -o /home/kaled/Documents/test-comp21-files/FuSeBMC_v3.6.6/fusebmc_output/AllInterval-005.c_ucxLUGjcqVGbWFhqLfmCLIhiJ/AllInterval-005.c.i
+2020-12-08 08:17:17 DEBUG    Parsing program
+2020-12-08 08:17:17 DEBUG    Finished parsing program
+2020-12-08 08:17:17 DEBUG    Adding program labels
+2020-12-08 08:17:17 DEBUG    Wrote transformed C program to /tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c
+2020-12-08 08:17:17 DEBUG    Removing abort from explicit declaration. Exists in line: extern void abort(void);
+
+2020-12-08 08:17:17 DEBUG    Removing exit from explicit declaration. Exists in line: extern void exit(int __status);
+
+2020-12-08 08:17:17 DEBUG    Compiling /tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c and /home/kaled/Documents/test-comp21-files/FuSeBMC_v3.6.6/fusebmc_output/AllInterval-005.c_ucxLUGjcqVGbWFhqLfmCLIhiJ/fusebmc_instrument_output/output_cov/harness.c into /home/kaled/Documents/test-comp21-files/FuSeBMC_v3.6.6/fusebmc_output/AllInterval-005.c_ucxLUGjcqVGbWFhqLfmCLIhiJ/fusebmc_instrument_output/output_cov/a.out
+2020-12-08 08:17:17 DEBUG    gcc -std=gnu11 -m32 -Wno-attributes -D__alias__(x)= -o /home/kaled/Documents/test-comp21-files/FuSeBMC_v3.6.6/fusebmc_output/AllInterval-005.c_ucxLUGjcqVGbWFhqLfmCLIhiJ/fusebmc_instrument_output/output_cov/a.out -include /tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c /home/kaled/Documents/test-comp21-files/FuSeBMC_v3.6.6/fusebmc_output/AllInterval-005.c_ucxLUGjcqVGbWFhqLfmCLIhiJ/fusebmc_instrument_output/output_cov/harness.c -lm -fprofile-arcs -ftest-coverage -DGCOV
+2020-12-08 08:17:17 DEBUG    Error output of execution:
+In file included from <command-line>:
+/tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c: In function ‘assume’:
+/tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c:12:18: error: stray ‘#’ in program
+   if (!cond)     #ifdef GCOV
+                  ^
+/tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c:12:19: error: ‘ifdef’ undeclared (first use in this function)
+   if (!cond)     #ifdef GCOV
+                   ^~~~~
+/tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c:12:19: note: each undeclared identifier is reported only once for each function it appears in
+/tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c:12:24: error: expected ‘;’ before numeric constant
+   if (!cond)     #ifdef GCOV
+                        ^
+                        ;
+/tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c:14:7: error: #endif without #if
+      #endif
+       ^~~~~
+
+2020-12-08 08:17:17 ERROR    Compilation failed for harness /home/kaled/Documents/test-comp21-files/FuSeBMC_v3.6.6/fusebmc_output/AllInterval-005.c_ucxLUGjcqVGbWFhqLfmCLIhiJ/fusebmc_instrument_output/output_cov/harness.c:
+    In file included from <command-line>:
+    /tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c: In function ‘assume’:
+    /tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c:12:18: error: stray ‘#’ in program
+       if (!cond)     #ifdef GCOV
+                      ^
+    /tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c:12:19: error: ‘ifdef’ undeclared (first use in this function)
+       if (!cond)     #ifdef GCOV
+                       ^~~~~
+    /tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c:12:19: note: each undeclared identifier is reported only once for each function it appears in
+    /tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c:12:24: error: expected ‘;’ before numeric constant
+       if (!cond)     #ifdef GCOV
+                            ^
+                            ;
+    /tmp/testcov-2o2gs27m/instrumented_AllInterval-005.c:14:7: error: #endif without #if
+          #endif
+           ^~~~~
+    
