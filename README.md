@@ -16,7 +16,7 @@
         
         Map2check v7.3.1-Flock
         
-        Clang 6.0
+        Clang 6.0.0
   
         llvm 6.0.0
         
