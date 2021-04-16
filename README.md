@@ -1,13 +1,10 @@
-# FuSeBMC: A White-Box Fuzzer for Finding Security Vulnerabilities
-  FuSeBMC combines FUzzing with Symbolic Execution via Bounded Model Checking to detect security vulnerabilities in C programs. FuSeBMC builds on top of ESBMC as a state-of-the-art BMC engine. In particular, FuSeBMC uses two approaches for verifying security vulnerabilities in C programs. The first one is based on bounded model checking (BMC) techniques. BMC evaluates branch sides and merges states after that branch to build one logical formula expressed in a fragment of first-order theories and check the resulting formula using Boolean Satisfiability (SAT) or Satisfiability Modulo Theories (SMT) solvers. The second one exploits coverage-guided fuzzing to produce random inputs to locate security vulnerabilities in C programs. Also, It considers Map2check (libfuzzer) as a fuzzing engine. FuSeBMC mostly relies on efficient bounded model checking techniques; it can also handle two main features in software testing: code coverage and bug detection.
+# FuSeBMC: An Energy-Efficient Test Generator for Finding Security Vulnerabilities in C Programs
+  FuSeBMC is a novel Energy-Efficient Test Generator that exploits fuzzing and BMC engines to detect security vulnerabilities in C programs. It explores and analyzes the target C program by injecting labels that guide those engines to produce test-cases. FuSeBMC also exploits a selective fuzzer to produce test-cases for the labels that fuzzing and BMC engines could not produce test-cases. Lastly, we manage each engine's execution time to improve FuSeBMC's energy consumption. As a result, FuSeBMC guides the fuzzing and BMC engines to explore more profound in the target C programs and then produce test-cases that achieve higher coverage with lower energy consumption to detect bugs efficiently. We evaluated FuSeBMC by participating in Test-Comp 2021 to test the ability of the tool in two categories of the competition, which are code coverage and bug detection. The competition results show that FuSeBMC performs well if compared to the state-of-the-art software testing tools. FuSeBMC achieved 3 awards in the Test-Comp 2021: first place in the Cover-Error category, second place in the Overall category, and third place in the Low Energy Consumption category.
+
+For more detiles, you can read our publised paper:
+https://link.springer.com/chapter/10.1007/978-3-030-71500-7_19
 
 
-* A tool based on ESBMC that can analyze and inject labels "goals" in the target C code. Also, it can produce the graph file and then the XML files that we can use later to get the counterexamples values.
-* FuSeBMC can participate in a competition such as "Test-Comp21" and compare the results with state-of-the-art testing tools.
-* FuSeBMC can analyze the target file and then put the labels "GOAL_#" in this target file so the tool after can use it to produce the counterexample that will reach us to that line in the code.
-* FuSeBMC can help us to get the counterexamples for each path in the target file because of their effective method used in the tool.
-* FuSeBMC uses several technics such as Fuzzing and BMC.
-* FuSeBMC is now able to participate in the categories "Cover-Branches" and "Cover-error" in the competition "Test-Comp21".
   <br /><br />  <br />
 
  * Requrments to use the tool:
@@ -36,13 +33,20 @@
 <br /><br />
 How to run it:
 
+In order to run our fusebmc.py script,5 one must set the architecture (i.e., 32 or
+64-bit), the competition strategy (i.e., k-induction, falsification, or incremental
+BMC), the property file path, and the benchmark path, as:
 
-./fusebmc.py -p ./properties/coverage-branches.prp -s incr ./examples/rangesum10.i
+  ./fusebmc.py [-a {32, 64}] [-p PROPERTY_FILE]
+  [-s {kinduction,falsi,incr,fixed}]
+  [BENCHMARK_PATH]
+
+where -a sets the architecture, -p sets the property file path, and -s sets
+the strategy (e.g., kinduction, falsi, incr, or fixed). For Test-Comp’21,
+FuSeBMC uses incr for incremental BMC.
 
 
 <br /><br />
-
-
 <br /><br />
 
 If you want to run just the instrument
@@ -71,7 +75,7 @@ Note: all the outputs in the folders are based on the experiment on the file "ra
 
 
 <br /><br />
-If you want to run the tool on the benchmark of the competition "Test-Comp20", you need to put the files "competitions files" in the same directory:
+If you want to run the tool on the benchmark of the competition "Test-Comp21", you need to put the files "competitions files" in the same directory:
 
 1- ESBMC from https://github.com/esbmc/esbmc/releases/latest/download/ESBMC-Linux.sh
 
@@ -106,4 +110,4 @@ If you want to run the tool on the benchmark of the competition "Test-Comp20", y
 
 
 Note:<br />
-The tool is still under testing.
+Release 3.6.6 do not need to compile it
