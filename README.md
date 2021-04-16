@@ -20,8 +20,7 @@ https://drive.google.com/drive/folders/1XMnNkAGP1e6ZuoygBTEaanM80I_QRe_g?usp=sha
 For more details, we recommend to read our published paper:
 https://link.springer.com/chapter/10.1007/978-3-030-71500-7_19
 
-
-  <br /><br />  <br />
+  <br /><br />
 
  * Requrments to use the tool:
  
@@ -54,8 +53,6 @@ In order to run our FuSeBMC, all you need is to use our script "fusebmc.py," one
      ./fusebmc.py [-a {32, 64}] [-p PROPERTY_FILE] [-s {kinduction,falsi,incr,fixed}] [BENCHMARK_PATH]
 
 where -a sets the architecture, -p sets the property file path, and -s sets the strategy (e.g., kinduction, falsi, incr, or fixed). For Test-Comp’21, FuSeBMC uses incr for incremental BMC.
-
-
 <br /><br />
 <br /><br />
 
@@ -66,13 +63,10 @@ If you want to run just the instrument
 
        ./FuSeBMC_instrument <inputFile_> <outputFile_> <goalOutputFile_> <pathofthefuncations_> <options_>
 
-
-  Or
-
+            Or
 
        ./FuSeBMC_instrument <inputFile_> <outputFile_> <goalOutputFile_> <-nogoalProFunc> <options_>
  
-
 <br /><br />
 
 
@@ -81,9 +75,6 @@ If you want to run just the instrument
 Note: all the outputs in the folders are based on the experiment on the file "rangesum 10.i" with the property coverage-branches.
 
 <br /><br />
-
-
-
 <br /><br />
 If you want to run the tool on the benchmark of the competition "Test-Comp21", you need to put the files "competitions files" in the same directory. However, you need to run FuSeBMC on Benchexec provided by Test-Comp 21. In order to participate at Test-Comp, a tool-info module in the BenchExec repository is necessary. The experiments were conducted on the server of Test-Comp 2021. Each run was limited to 8 processing units, 15 GB of memory, and 15 min of CPU time. The test suite validation was limited to 2 processing units, 7 GB of memory, and 5 min of CPU time. Also, the machine had the following specification of the test node was: one Intel Xeon E3-1230 v5 CPU, with 8 processing units each, a frequency of 3.4 GHz, 33 GB of RAM, and a GNU/Linux operating system(x86-64-Linux, Ubuntu 20.04 with Linux kernel 5.4).
 
@@ -99,9 +90,7 @@ If you want to run the tool on the benchmark of the competition "Test-Comp21", y
 
 6- Reproducing Test-Comp Results from https://test-comp.sosy-lab.org/2021/systems.php
 
-
 <br /><br />
-
 
 * The output of the tool will be in the folder "fusebmc_output". You will have these files under the folder fusebmc_instrument_output" as follows:
 
