@@ -2,7 +2,12 @@
   FuSeBMC is a novel Energy-Efficient Test Generator that exploits fuzzing and BMC engines to detect security vulnerabilities in C programs. It explores and analyzes the target C program by injecting labels that guide those engines to produce test-cases. FuSeBMC also exploits a selective fuzzer to produce test-cases for the labels that fuzzing and BMC engines could not produce test-cases. Lastly, we manage each engine's execution time to improve FuSeBMC's energy consumption. As a result, FuSeBMC guides the fuzzing and BMC engines to explore more profound in the target C programs and then produce test-cases that achieve higher coverage with lower energy consumption to detect bugs efficiently. We evaluated FuSeBMC by participating in Test-Comp 2021 to test the ability of the tool in two categories of the competition, which are code coverage and bug detection. The competition results show that FuSeBMC performs well if compared to the state-of-the-art software testing tools. FuSeBMC achieved 3 awards in the Test-Comp 2021: first place in the Cover-Error category, second place in the Overall category, and third place in the Low Energy Consumption category.
 
 For more detiles, you can read our publised paper:
+
 https://link.springer.com/chapter/10.1007/978-3-030-71500-7_19
+
+The results of FuSeBMC in Test-Comp 2021 are available in this link:
+
+https://test-comp.sosy-lab.org/2021/results/results-verified/
 
 
   <br /><br />  <br />
