@@ -87,6 +87,8 @@ If you want to run the tool on the benchmark of the competition "Test-Comp21", y
 
 6- Reproducing Test-Comp Results from https://test-comp.sosy-lab.org/2021/systems.php
 
+To reproduce Test-Comp 2021' results, follow the instruction in the file "instructions&command_lines.TXT"
+
 <br /><br />
 
 * The output of the tool will be in the folder "fusebmc_output". You will have these files under the folder fusebmc_instrument_output" as follows:
