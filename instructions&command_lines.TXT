@@ -1,0 +1,34 @@
+To reproduce the results in Test-Comp21, you need to follow these steps:
+
+1- Download the files (FuSeBMC, TestCov, BenchExec, and SV-benchmarks) from this link:
+(sent by Email)
+
+2- after you unzip the file, be in this directory "/Desktop/fusebmc/fusebmc"
+
+3- Prepare the environment by conducting these command-lines
+sudo apt-get update -y
+sudo apt-get install -y libperlio-gzip-perl
+sudo apt-get install libjson-perl
+sudo apt-get install python3-setuptools
+
+Now we can run BenchExec for each subcategory such as "ReachSafety-Recursive":
+
+To run FuSeBMC:
+./benchexec/bin/benchexec FuSeBMC.xml --timelimit 900s --limitCores 8 --tasks ReachSafety-Recursive --numOfThreads 8 --no-container --no-compress-results
+
+To run testcov:
+./benchexec/bin/benchexec testcov-validate-test-suites.xml --timelimit 900s --limitCores 1 --tasks ReachSafety-Recursive --tool-directory ./val_testcov/testcov/ --numOfThreads 1 --no-container --no-compress-results
+
+All the results will be store in both folders (results & results-verified)
+
+In order to get HTML and CSV tables, run
+benchexec/bin/table-generator 'results/FuSeBMC.2021-04-22_07-16-36.results.Test-Comp21_coverage-error-call.ReachSafety-Recursive.xml' 'results/testcov-validate-test-suites.2021-04-22_16-48-04.results.Test-Comp21_coverage-error-call.ReachSafety-Recursive.xml'
+(folders names should be diffrent from what you have ... this just for explaintion)
+
+Note:
+1- To conduct these experiments you have to have 15 GB of memory at least. if you don't then you need to decrease the number of memory inside the file FuSeBMC.xml (and testcov-validate-test-suites.xml) to (suitable number of memory). However, this decrease will affect the results in some benchmarks.
+
+2- If you decide to run the experiments on all categories, you may consume a lot of time because the report of the competition Test-Comp 2021 said that "All tools consumed 220 days of CPU Time". FuSeBMC itself consumed 410 h of CPU Time. Therefore, I recommend to pick several subcategories to examine the tool FuSeBMC.
+
+Here is a tutorial to run these experiments:
+https://drive.google.com/file/d/1KXA35igdm16GjzTm9uTKLP4edgp2xNW_/view?usp=sharing
