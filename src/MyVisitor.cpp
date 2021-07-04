@@ -37,8 +37,6 @@
 #include <GoalCounter.h>
 #include <MyOptions.h>
 #include <my_instrument.h>
-//#include <clang/ASTMatchers/ASTMatchFinder.h>
-//#include <clang/ASTMatchers/ASTMatchers.h>
 
 using namespace clang;
 extern MyOptions * myOptions;
@@ -55,34 +53,6 @@ extern MyOptions * myOptions;
 #define LOG(x) std::cout <<  #x" = "  << x << "   LINE=" << __LINE__ << std::endl;
 bool MyVisitor::TraverseDecl(Decl* decl)
   {
-      //llvm::outs() << "TTTTTTTT";
-      //decl->dumpColor();
-      //if(decl->isFunctionOrFunctionTemplate()) 
-      //{
-       //   FunctionDecl *func = decl->getAsFunction();
-          //const SourceManager &SM = *TheHolder.SourceManager;
-          //const ASTContext *Context = TheHolder.ASTContext;
-          
-          //16.05.2020
-          //if(func->hasBody())
-          //{
-           //   Stmt * body =func->getBody();
-            //  for (Stmt::child_iterator i = body->child_begin(), e = body->child_end(); i != e; ++i)
-             // {
-             //     Stmt *currStmt = *i;
-              //    if(isa<ReturnStmt>(currStmt))
-               //   {
-                //      ReturnStmt * retStmt =cast<ReturnStmt>(currStmt);
-                      //std::cout << "BEGIN STMMT" << std::endl;
-                      //retStmt->dumpColor();
-                      //std::cout << "END STMMT" << std::endl;
-                //      TheRewriter.InsertTextBefore(retStmt->getLocStart().getLocWithOffset(0) ,"/*my return goal*/"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"");
-                //  }
-              //}
-              //TheRewriter.InsertTextAfter(body->getLocStart().getLocWithOffset(1),"\r\n" + GoalCounter::getInstance().GetNewGoalForFunc(func->getNameAsString()));
-        //  }
-      //}
-      //return true;
       return Base::TraverseDecl(decl);
   }
   tok::TokenKind MyVisitor::getTokenKind(SourceLocation Loc, const SourceManager &SM, const ASTContext *Context) 
@@ -95,25 +65,6 @@ bool MyVisitor::TraverseDecl(Decl* decl)
           return tok::NUM_TOKENS;
       return Tok.getKind();
 }
-  /*static SmallVector<const Stmt *, 1> getParentStmts(const Stmt *S,ASTContext *Context) {
-  SmallVector<const Stmt *, 1> Result;
-  ASTContext::DynTypedNodeList Parents = Context->getParents(*S);
-  SmallVector<ast_type_traits::DynTypedNode, 1> NodesToProcess(Parents.begin(),Parents.end());
-  while (!NodesToProcess.empty())
-  {
-    ast_type_traits::DynTypedNode Node = NodesToProcess.back();
-    NodesToProcess.pop_back();
-
-    if (const auto *S = Node.get<Stmt>()) {
-      Result.push_back(S);
-    } else {
-      Parents = Context->getParents(Node);
-      NodesToProcess.append(Parents.begin(), Parents.end());
-    }
-  }
-  return Result;
-}
-  */
   
   bool MyVisitor::checkStmt(Stmt *S,SourceLocation InitialLoc, SourceLocation EndLocHint, InstrumentOption instrumentOption,bool isIfIfOrElseIf) 
   {
@@ -125,8 +76,6 @@ bool MyVisitor::TraverseDecl(Decl* decl)
   // 3) Otherwise the check finds the end of line (possibly after some block or
   // line comments) and inserts "\n}" right before that EOL.
   if (!S) return false;  
-  //llvm::outs()<< "SSSSSSSSSSSSSS\r\n" << S->getStmtClassName() ;
-  //S->dumpColor();
     
   const SourceManager &SM = *TheHolder.SourceManager;
   ASTContext *Context = TheHolder.ASTContext;
@@ -149,37 +98,6 @@ bool MyVisitor::TraverseDecl(Decl* decl)
         TheRewriter.InsertTextBefore(compoundStmt->getRBracLoc().getLocWithOffset(1),
                       GET_LINE()+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+GET_LINE_E());
       return false;
-      /*bool isDone=false;
-      SourceLocation LParenLoc =forwardSkipWhitespaceAndComments(S->getLocStart(), SM, Context);
-      while(!isDone)
-      {        
-        if (LParenLoc.isInvalid())
-        {
-            return true;
-        }
-        tok::TokenKind TokKind = getTokenKind(LParenLoc,SM,Context);
-        llvm::outs() << "TOKEN=="<<  tok::getTokenName(TokKind) << "\r\n";
-        if (TokKind == tok::l_brace)
-        {
-            //diag(RParenLoc, ErrorMessage);
-            TheRewriter.InsertTextAfter(LParenLoc.getLocWithOffset(1),GoalCounter::getInstance().GetNewGoal());
-            isDone=true;
-        }
-        else
-        {
-            LParenLoc=LParenLoc.getLocWithOffset(1);
-            llvm::outs() << "XXX=="<<  LParenLoc.printToString(SM) << "\r\n";
-            //RParenLoc =forwardSkipWhitespaceAndComments(RParenLoc, SM, Context);
-        }
-      }*/
-      
-       /*InitialLoc = Lexer::makeFileCharRange(
-                   CharSourceRange::getCharRange(InitialLoc, S->getLocStart()),
-                   SM, Context->getLangOpts()).getBegin();
-       if (InitialLoc.isInvalid())
-           return false;
-       SourceLocation StartLoc =Lexer::getLocForEndOfToken(InitialLoc, 0, SM, Context->getLangOpts());
-      TheRewriter.InsertTextAfter(StartLoc,"GOAL_AAAA:");*/
   }
   
   // Treat macros.
@@ -206,14 +124,13 @@ bool MyVisitor::TraverseDecl(Decl* decl)
   {
       EndLoc = EndLocHint;
       ClosingInsertion = "\n"+D("/*A*/")+"}\n";
-      //TheRewriter.InsertTextAfter(EndLoc,ClosingInsertion);
   } 
   else 
   {
       const auto FREnd = FileRange.getEnd().getLocWithOffset(-1);
       EndLoc = findEndLocation(FREnd, SM, Context);
       ClosingInsertion = "\n"+D("/*B*/")+"}\n";
-      //TheRewriter.InsertTextAfter(EndLoc,ClosingInsertion);
+   
   }
   assert(StartLoc.isValid());
   assert(EndLoc.isValid());
@@ -233,7 +150,6 @@ bool MyVisitor::TraverseDecl(Decl* decl)
   else 
   {
 #ifdef MYDEBUG
-      //std::cout << "LINE:"<< EndLoc.printToString(SM) << " V_counter:" << V_counter << std::endl;
 #endif
       if(myOptions->addLabels)
       {
@@ -302,31 +218,14 @@ bool MyVisitor::TraverseDecl(Decl* decl)
             checkStmt(Else, ifStmt->getElseLoc(), SourceLocation(),InstrumentOption::STMT_OPTION_NONE , isElseIf);
         }
         else
-        {
-            // Strart: 16.05.2020
-            //ifStmt->getThen()->getLocEnd()
-            //std::cout << SM.getCharacterData(ifStmt->getThen()->getLocEnd()) << std::endl;
-            //TheRewriter.InsertTextAfter(ifStmt->getThen()->getLocEnd().getLocWithOffset(1),"else {houssam"+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"}");
-            
-            
+        {          
             checkStmt(Then, StartLoc, ifStmt->getElseLoc(),InstrumentOption::MUST_INSERT_ELSE , isIfIf);
-            
         }
     }
-    /*else if(isa<CompoundStmt>(S))
-    {
-        CompoundStmt * compoundStmt = cast<CompoundStmt>(S);
-        TheRewriter.InsertTextAfter(compoundStmt->getRBracLoc().getLocWithOffset(-1),"\n;GOAL_XX:;\n");
-
-    }*/
-    /*else if(isa<DeclStmt>(S))
-    {
-        llvm::outs()<< "\nSSSSSSSSSSSSSS\r\n" << S->getStmtClassName() ;
-        S->dumpColor();
-    }*/
+     
     else if(isa<SwitchStmt>(S))
     {
-        //llvm::outs()<<  current_func->getNameAsString() << "\n";
+        
          SwitchStmt * switchStmt = cast<SwitchStmt>(S);
          const SwitchCase * switchCase = switchStmt->getSwitchCaseList();
          while(switchCase != nullptr)
@@ -335,8 +234,6 @@ bool MyVisitor::TraverseDecl(Decl* decl)
             switchCase = switchCase->getNextSwitchCase();
          }
          
-        //llvm::outs()<< "\nXXXXXXXXXX\r\n" << S->getStmtClassName() ;
-        //S->dumpColor();
     }
     else
     {
@@ -360,14 +257,6 @@ SourceLocation MyVisitor::findRParenLoc(const IfOrWhileStmt *S,const SourceManag
     CondEndLoc = CondVar->getLocEnd();
 
   assert(CondEndLoc.isValid());
-  /*if(!CondEndLoc.isValid())
-  {
-      S->dump();
-      const SourceManager &SM = *TheHolder.SourceManager;
-      const ASTContext *Context = TheHolder.ASTContext;
-      S->getLocStart().dump(SM);
-      exit(0);
-  }*/
   SourceLocation PastCondEndLoc = Lexer::getLocForEndOfToken(CondEndLoc, 0, SM, Context->getLangOpts());
   if (PastCondEndLoc.isInvalid()) 
   {
@@ -477,14 +366,12 @@ bool MyVisitor::VisitDecl(Decl *decl)
 {
     if (decl->isFunctionOrFunctionTemplate())
         this->current_func = decl->getAsFunction();
-   
-     //16.05.2020
+  
      if(decl->isFunctionOrFunctionTemplate() && decl->hasBody() && myOptions->addGoalAtEndOfFunc)         
      {
          Stmt*  body =decl->getBody();
          // Iterate over the top level of statements; 
-         //not insert before
-         // I don't know if we must check if the sub-statements include 'return'
+         //not insert before      
          bool hasReturn = false;
          for (Stmt::child_iterator i = body->child_begin(), e = body->child_end(); i != e; ++i)
          {
@@ -493,9 +380,6 @@ bool MyVisitor::VisitDecl(Decl *decl)
              {
                  hasReturn=true;
                  ReturnStmt * retStmt =cast<ReturnStmt>(currStmt);
-                  //std::cout << "BEGIN STMMT" << std::endl;
-                  //retStmt->dumpColor();
-                  //std::cout << "END STMMT" << std::endl;
                  TheRewriter.InsertTextBefore(retStmt->getLocStart().getLocWithOffset(0) ,GET_LINE()+GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString())+"");
              }
             
@@ -505,7 +389,6 @@ bool MyVisitor::VisitDecl(Decl *decl)
              TheRewriter.InsertTextBefore(body->getLocEnd().getLocWithOffset(0),GET_LINE() + GoalCounter::getInstance().GetNewGoalForFunc(current_func->getNameAsString()));
          
      }
-      //20.05.2020
     if(decl->isFunctionOrFunctionTemplate() && decl->hasBody())
     {
         std::string lbl =myOptions->GetLabelForFunc(this->current_func->getNameAsString());
@@ -523,15 +406,11 @@ bool MyVisitor::VisitDecl(Decl *decl)
 
   bool MyVisitor::VisitStmt(Stmt *s)
   {
-      if(!s) return true;
-      //llvm::outs() << "SSSSSSSSSSSSSSSs\r\n" ;
-      //const SourceManager &SM = *TheHolder.SourceManager;
-      //const ASTContext *Context = TheHolder.ASTContext;
-     
+      if(!s) return true; 
       if(myOptions->showParseTree)
       {
           s->dumpColor();
-          //s->getLocStart().dump(SM);
+     
       }
       check(s);
       //llvm::outs() << "---------------------------------------\r\n" ;
