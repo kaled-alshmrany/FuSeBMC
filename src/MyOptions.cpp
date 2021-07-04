@@ -1,5 +1,5 @@
 #include <MyOptions.h>
-//20.05.2020
+
 string MyOptions::GetLabelForFunc(string func)
 {
     if(!this->addLabelInFunc)
