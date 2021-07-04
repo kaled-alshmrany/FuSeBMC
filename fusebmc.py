@@ -11,12 +11,10 @@ import sys
 import resource
 import re
 import zipfile
-#from time import process_time 
-#from time import process_time_ns
+
 import hashlib
 
 from threading import Thread
-#from threading import Lock
 from queue import  Empty
 
 try:
@@ -32,7 +30,6 @@ from datetime import datetime
 
 # Start time for this script
 start_time = time.time()
-#start_time=process_time()
 property_file_content = ""
 category_property = 0
 benchmark=''
@@ -83,7 +80,6 @@ EXTRA_TESTCASE_COUNT = 6
 
 esbmc_path = "./esbmc "
 
-#map2check_path = os.path.abspath('./map2check/map2check ')
 map2check_path = os.path.abspath('./map2check-fuzzer/map2check ')
 map2checkTime = 150  #seconds
 map2checkTimeErrorCall_Symex = 40  #seconds
@@ -97,35 +93,22 @@ map2checkWitnessFile='' # will be set later in the wrapper output
 
 
 COV_TEST_EXE = './val_testcov/testcov/bin/testcov'
-#COV_TEST_EXE = './test-suite-validator/bin/testcov'
 FUSEBMC_INSTRUMENT_EXE_PATH = './FuSeBMC_inustrment/FuSeBMC_inustrment'
 
-# ESBMC default commands: this is the same for every submission
 esbmc_dargs = "--no-div-by-zero-check --force-malloc-success --state-hashing "
-#16.05.2020 remove --unlimited-k-steps
-#03.06.2020 kaled reduce the number of "--k-step 120"
 esbmc_dargs += "--no-align-check --k-step 5 --floatbv  "
-#02.06.2020 adding options for Coverage-error-call
-# kaled : 03.06.2020 you must put it in method 'get_command_line line 844'; here is general
-#esbmc_dargs += "--no-align-check --k-step 120 --floatbv --unlimited-k-steps "
 esbmc_dargs += "--context-bound 2 "
-#--unwind 1000 --max-k-step 1000 
 esbmc_dargs += "--show-cex "
-#esbmc_dargs += " --overflow-check " 
 
 C_COMPILER = 'gcc'
-#COV_TEST_PARAMS = ['--no-runexec','--use-gcov','-64']
-#COV_TEST_PARAMS= ['--no-runexec','--use-gcov','--cpu-cores','0', '--verbose', '--no-plots','--reduction','BY_ORDER','--reduction-output','test-suite']
-#COV_TEST_PARAMS= ['--no-runexec', '--no-isolation', '--memlimit', '6GB', '--timelimit-per-run', '3', '--cpu-cores', '0', '--verbose', '--no-plots','--reduction', 'BY_ORDER','--reduction-output','test-suite']
 COV_TEST_PARAMS= ['--no-isolation','--memlimit', '6GB','--timelimit-per-run', '3', '--cpu-cores', '0','--verbose','--no-plots','--reduction', 'BY_ORDER', '--reduction-output','test-suite']
 RUN_COV_TEST = True
-time_out_s = 850 # 890 seconds 
-time_for_zipping_s = 10  # the required time for zipping folder; Can Zero ??
+time_out_s = 850 # 850 seconds 
+time_for_zipping_s = 10  # the required time for zipping folder;
 is_ctrl_c = False
 remaining_time_s=0
 
 goals_count = 0
-#fdebug = None
 class TColors:
 	HEADER = '\033[95m'
 	OKBLUE = '\033[94m'
@@ -137,25 +120,13 @@ class TColors:
 	UNDERLINE = '\033[4m'
 
 
-hasInputInTestcase = False # don't change it.
+hasInputInTestcase = False
 map2CheckInputCount = 0
 lastInputInTestcaseCount = 0
 
 mustRunTwice = True # You can change it.
 runNumber=1
 
-#def logText(txt):
-#	global fdebug
-	#fdebug = open(WRAPPER_OUTPUT_DIR + '/fdebug.txt','a')
-	#fdebug.write(txt);
-	#fdebug.close()
-#important_outs_by_ESBMC=["Timed out","Out of memory","Chosen solver doesn\'t support floating-point numbers",
-#						"dereference failure: forgotten memory","dereference failure: invalid pointer",
-#						"dereference failure: Access to object out of bounds", "dereference failure: NULL pointer",
-#						"dereference failure: invalidated dynamic object", "dereference failure: invalidated dynamic object freed", 
-#						"dereference failure: invalid pointer freed","dereference failure: free() of non-dynamic memory","array bounds violated",
-#						"Operand of free must have zero pointer offset", "VERIFICATION FAILED", "unwinding assertion loop", 
-#						" Verifier error called", "VERIFICATION SUCCESSFUL"]
 important_outs_by_ESBMC=["Chosen solver doesn\'t support floating-point numbers"]
 #See http://eyalarubas.com/python-subproc-nonblock.html
 class NonBlockingStreamReader:
@@ -228,17 +199,6 @@ def IsTimeOut(must_throw_ex = False):
 	#global lasttime
 	if is_ctrl_c is True:
 		raise KeyboardInterrupt()
-	
-	#curr_gp_times = os.times()
-	#user=curr_gp_times[0]
-	#system=curr_gp_times[1]
-	#children_user=curr_gp_times[2]
-	#children_system=curr_gp_times[3]
-	#exec_time_s = int(user + system + children_user + children_system)
-	
-	#if(exec_time_s != lasttime):
-	#	lasttime=exec_time_s
-	#	logText('exec_time_s=' + str(exec_time_s) + ' time_out_s:' + str(time_out_s) + '\n')
 		
 
 	end_time = time.time()
@@ -388,25 +348,8 @@ class AssumptionParser(object):
 						elif data.attrib['key'] == 'assumption':
 							assumption = data.text
 					if assumption != "":
-						#print('assumption',assumption)
-						#if self.isFromMap2Check:
-						#	assum_l,assum_r= assumption.split(' == ')
-						#	if assum_l.find('\\')== 0: assum_l = assum_l.replace('\\','',1)
-						#else:
-						#	assum_l,assum_r= assumption.split('=')
-						#	assum_r = assum_r.replace(';','',1)
-						#	if assum_r[-1] == "f" or assum_r[-1] == "l": 
-						#		assum_r = assum_r[:-1]
-							
-						#TODO: handle f and l
-						#_, right = pAssumptionHolder.assumption.split("=")
-						
-						#assum_l = assum_l.strip()
-						#assum_r = assum_r.strip()		
-						#print('assum_l',assum_l,len(assum_l), 'assum_r',assum_r,len(assum_r))
 						self.assumptions.append(AssumptionHolder(startLine, assumption))
-						#assumption : n = 2;
-						#print('ass',assumption,'start',startLine)
+
 			except:
 				if IS_DEBUG :
 					print(TColors.FAIL,'Cannot parse node:',TColors.ENDC)
@@ -516,12 +459,8 @@ class NonDeterministicCall(object):
 		pAssumptionHolder : AssumptionHolder
 			Nondeterministic assumption
 		"""
-		#value = NonDeterministicCall.extract_byte_little_endian(pAssumptionHolder.varVal)
-		#return NonDeterministicCall(value)
 		
 		if isFromMap2Check:
-			#assum_l,assum_r= assumption.split(' == ')
-			#if assum_l.find('\\')== 0: assum_l = assum_l.replace('\\','',1)
 			try:
 				_,val = pAssumptionHolder.assumption.split(' == ')
 			except Exception as ex:
@@ -529,18 +468,6 @@ class NonDeterministicCall(object):
 					print(TColors.FAIL+ ' Error in File (fromAssumptionHolder,isFromMap2Check):'+ TColors.ENDC, benchmark)
 				val = '0'
 		else:
-			#assum_l,assum_r= assumption.split('=')
-			#assum_r = assum_r.replace(';','',1)
-			#if assum_r[-1] == "f" or assum_r[-1] == "l": 
-			#	assum_r = assum_r[:-1]
-			
-		#TODO: handle f and l
-		#_, right = pAssumptionHolder.assumption.split("=")
-		
-		#assum_l = assum_l.strip()
-		#assum_r = assum_r.strip()	
-			
-			#TODO: copy this
 			try:
 				_,val = pAssumptionHolder.assumption.split("=")
 				val,_ = val.split(';')
@@ -550,7 +477,6 @@ class NonDeterministicCall(object):
 				if IS_DEBUG:
 					print(TColors.FAIL+ ' Error in File (fromAssumptionHolder):'+ TColors.ENDC, benchmark)
 				val = '0'
-				#return None
 				pass
 			
 		value = NonDeterministicCall.extract_byte_little_endian(val.strip())
@@ -634,47 +560,18 @@ class SourceCodeChecker(object):
 		try:
 			lineContent = SourceCodeChecker.__lines__[p_AssumptionHolder.line - 1]
 		except:
-			pass
-		# At first we do not care about variable name or nondet type
-		# TODO: Add support to variable name
-		# TODO: Add support to nondet type
-		
-		#print('LiNE', lineContent)
-		#index = lineContent.find('__VERIFIER_nondet_')
-		#if index >= 0:
-		#	lineContent=lineContent.replace(';', ',')
-			#lineLst =['  unsigned int i', ' n=__VERIFIER_nondet_uint()', ' sn=0', '\n']
-			#lineLst ['  unsigned long pat_len = __VERIFIER_nondet_ulong()', ' a_len = __VERIFIER_nondet_ulong()', '\n']
-
-			#lineLst=lineContent.split(',')
-			#print('lineLst', lineLst)
-			#for stmt in lineLst:
-			#	if stmt.find('__VERIFIER_nondet_') >=0 :
-			#		left,right = stmt.split('=');
-			#		left = left.strip()
-			#		left_lst = left.split(' ')
-			#		left=left_lst[:-1]
-			#		print('LLLLLEEEFT',left)
-			#		return p_AssumptionHolder.varName == left				
-					
+			pass					
 			
 		result = lineContent.split("__VERIFIER_nondet_")
 		return len(result) > 1
-		#return False
-		# return right != ""
-
+		
 	"""
 	return list of NonDeterministicCall objects.
 	"""
 	def getNonDetAssumptions(self):
 		
 		filtered_assumptions = list()
-		
-		#print('self.lstAssumptionHolder',self.lstAssumptionHolder)
-		#if len(self.lstAssumptionHolder)==0 :
-		#	return []
-		# 16.05. end
-		
+
 		for i in range(len(self.lstAssumptionHolder)-1):
 			if self.__is_not_repeated__(i):
 				filtered_assumptions.append(self.lstAssumptionHolder[i])
@@ -702,13 +599,11 @@ class TestCompMetadataGenerator(object):
 	def writeMetadataFile(self):
 		""" Write metadata.xml file """
 		root = ET.Element("test-metadata")
-		# TODO: add support to enter function
 		ET.SubElement(root, 'entryfunction').text = 'main'
 		ET.SubElement(root, 'specification').text = property_file_content.strip()
 		properties = {'sourcecodelang', 'sourcecodelang', 'producer',
 					  'programfile', 'programhash', 'architecture', 'creationtime'}
 		for property in properties:
-			# 16.05.2020 && 29.05.2020
 			if (category_property == Property.cover_branches or category_property == Property.cover_error_call):
 				if property == 'programfile':
 					ET.SubElement(root, property).text= benchmark
@@ -773,7 +668,6 @@ def createTestFile(witness, source,testCaseFileName,isFromMap2Check = False):
 	
 	if not os.path.isfile(witness) : return
 	assumptions = __getNonDetAssumptions__(witness, source,isFromMap2Check)
-	#print('WE HAVE', len(assumptions))
 	assumptionsLen = len(assumptions)
 	if(assumptionsLen > 0):
 		TestCompGenerator(assumptions).writeTestCase(testCaseFileName)
@@ -792,14 +686,6 @@ def createTestFile(witness, source,testCaseFileName,isFromMap2Check = False):
 		if assumptionsLen > lastInputInTestcaseCount:
 			lastInputInTestcaseCount = assumptionsLen
 		
-	
-	#metadataParser = MetadataParser(witness)
-	#metadataParser.parse()
-	#TestCompMetadataGenerator(metadataParser.metadata).writeMetadataFile()
-	#if mustRunTwice == False or (mustRunTwice and runNumber==1):
-	#	AddFileToArchive(META_DATA_FILE,TEST_SUITE_DIR_ZIP)
-	
-
 
 class Result:
 	success = 1
@@ -884,9 +770,6 @@ def RunCovTest():
 	cov_test_cmd.extend(COV_TEST_PARAMS)
 	test_suite_dir_zip_abs=os.path.abspath(TEST_SUITE_DIR_ZIP)
 	property_file_abs = os.path.abspath(property_file)
-	#if category_property == Property.cover_error_call:
-	#	benchmark_abs = os.path.abspath(toWorkSourceFile)
-	#else:
 	benchmark_abs = os.path.abspath(benchmark)
 	sourceForTestCov = WRAPPER_OUTPUT_DIR + '/' + os.path.basename(benchmark_abs)
 	sourceForTestCov = os.path.abspath(sourceForTestCov)
@@ -896,7 +779,6 @@ def RunCovTest():
 	run_without_output(' '.join(['cp',benchmark_abs ,sourceForTestCov]))
 	cov_test_cmd.extend(['-'+str(arch),'--test-suite' ,test_suite_dir_zip_abs , '--goal' ,property_file_abs , sourceForTestCov])
 	print(' '.join(cov_test_cmd))
-	#cwd = INSTRUMENT_OUTPUT_DIR
 	p=subprocess.Popen(cov_test_cmd, stdout=subprocess.PIPE,stderr=subprocess.PIPE , cwd = INSTRUMENT_OUTPUT_DIR)
 	while True:
 		line = p.stderr.readline()
@@ -921,7 +803,6 @@ def run_without_output(cmd_line, pCwd = None):
 			p = subprocess.run(the_args, stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 	except Exception as ex:
 		print(ex)
-	#p.communicate()
 
 # Function to run esbmc
 def run(cmd_line):
@@ -984,9 +865,6 @@ def run(cmd_line):
 			except UnexpectedEndOfStream as ueos:
 				pass
 			
-		#(stdout, stderr) = p.communicate()
-		#print (stdout.decode(), stderr.decode())
-		#return stdout.decode()
 	except MyTimeOutException as e:
 		if p is not None:
 			try:
@@ -998,10 +876,8 @@ def run(cmd_line):
 	except KeyboardInterrupt:
 		global is_ctrl_c
 		is_ctrl_c = True
-		#exit(0)
 		pass
-	#getTime(p.pid)
-	# Kill ESBMC When Timeout (maybe)
+
 	if p is not None:
 		try:
 			p.kill()
@@ -1050,7 +926,6 @@ def runWithTimeoutEnabled(cmd_line,pCwd=None):
 					if(SHOW_ME_OUTPUT): print(output)
 				else:
 					IsTimeOut(True)
-					#time.sleep(0.1)
 			except UnexpectedEndOfStream as ueos:
 				pass
 		
@@ -1063,18 +938,13 @@ def runWithTimeoutEnabled(cmd_line,pCwd=None):
 					if(SHOW_ME_OUTPUT): print(err)
 				else:
 					IsTimeOut(True)
-					#time.sleep(0.1)
 			except UnexpectedEndOfStream as ueos:
 				pass
 	
-	#except MyTimeOutException as e:
-	#	pass
 	except KeyboardInterrupt:
 		global is_ctrl_c
 		is_ctrl_c = True
-		#exit(0)
 		pass
-	# Kill ESBMC When Timeout (maybe)
 	if p is not None:
 		try:
 			p.kill()
@@ -1146,7 +1016,6 @@ def parse_result(the_output, prop):
 
 			if " Verifier error called" in the_output:
 				return Result.success
-		#20.05.2020
 		if prop == Property.cover_error_call:
 			return Result.fail_cover_error_call
 		if prop == Property.cover_branches:
@@ -1195,7 +1064,6 @@ def get_result_string(the_result):
 	if the_result == Result.err_unwinding_assertion:
 		return "Unknown"
 	
-	# TODO: What is the output
 	if the_result == Result.fail_cover_error_call:
 		return "FAIL_COVER_ERROR_CALL"
 	
@@ -1261,9 +1129,7 @@ def get_command_line(strat, prop, arch, benchmark, fp_mode):
 				command_line += "--max-k-step 10 --unwind 1 --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
 		elif (goals_count<100):
 			command_line += "--unlimited-k-steps --unwind 1 --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
-		#20.05.2020 + #03.06.2020 kaled: adding the option "--unlimited-k-steps" for coverage_error_call .... --max-k-step 5
 	elif prop == Property.cover_error_call:
-	#kaled : 03.06.2020 --unwind 10 --partial-loops
 		if mustRunTwice and runNumber ==1:
 			command_line += "--partial-loops --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
 		else:
@@ -1277,7 +1143,6 @@ def get_command_line(strat, prop, arch, benchmark, fp_mode):
 	
 	return command_line
 
-# not more used
 def generate_metadata_from_witness(p_witness_file):
 	
 	global META_DATA_FILE
@@ -1296,8 +1161,6 @@ def generate_testcase_from_assumption(p_test_case_file_full,p_inst_assumptions):
 		testcase_file.write('<!DOCTYPE testcase PUBLIC "+//IDN sosy-lab.org//DTD test-format testcase 1.0//EN" "https://sosy-lab.org/test-format/testcase-1.0.dtd">')
 		testcase_file.write('<testcase>')
 		for nonDeterministicCall in p_inst_assumptions:
-			# if you want to print to std
-			#print(nonDeterministicCall)
 			testcase_file.write('<input>'+nonDeterministicCall.value +'</input>')
 		testcase_file.write('</testcase>')
 	AddFileToArchive(p_test_case_file_full , TEST_SUITE_DIR_ZIP)
@@ -1347,11 +1210,6 @@ def verify(strat, prop, fp_mode):
 								  paramAddGoalAtEndOfFunc ,addFuSeBMCFuncParam, 
 								  '--compiler-args','-I'+os.path.dirname(os.path.abspath(benchmark))]))
 			
-			#Without else + without label-after-loop but with goal at end of function
-			#run_without_output(' '.join([FUSEBMC_INSTRUMENT_EXE_PATH, '--input',benchmark ,'--output', INSTRUMENT_OUTPUT_FILE , 
-			#					  '--goal-output-file',INSTRUMENT_OUTPUT_GOALS_FILE,'--add-labels','--add-goal-at-end-of-func',
-			#					  '--compiler-args', '-I'+os.path.dirname(os.path.abspath(benchmark))]))
-			
 			IsTimeOut(True)
 			#check if FuSeBMC_inustrment worked
 			if not os.path.isfile(INSTRUMENT_OUTPUT_FILE):
@@ -1379,17 +1237,8 @@ def verify(strat, prop, fp_mode):
 			goals_covered_by_map2check=[]
 			goals_to_be_run_map2check = []
 			goalInTheMiddle = 0			
-			#29.05.2020
 			if goals_count > 0: goalInTheMiddle = int(goals_count / 2)
-			#if MUST_APPLY_TIME_PER_GOAL and goals_count>0 :
-			#	time_per_goal_for_esbmc=int(time_out_s) / goals_count
-			#	time_per_goal_for_esbmc =int(time_per_goal_for_esbmc) # ms to second
-			#	if time_per_goal_for_esbmc == 0 : time_per_goal_for_esbmc = 1
-			
-			#list of list of NonDeterministicCall: each NonDeterministicCall has a value
 			inst_all_assumptions=[]
-			#--witness-output
-			# NOTE: We work with : INSTRUMENT_OUTPUT_FILE
 			inst_esbmc_command_line = get_command_line(strat, prop, arch, INSTRUMENT_OUTPUT_FILE, fp_mode)
 			counter=0
 			singleValueFromMap2Check = 0
@@ -1402,12 +1251,6 @@ def verify(strat, prop, fp_mode):
 				print(TColors.OKGREEN,'Lines In source:',linesInSource,TColors.ENDC)
 			if MUST_RUN_MAP_2_CHECK_FOR_BRANCHES:
 				goals_to_be_run_map2check=[1,4, goalInTheMiddle, goals_count]
-				#if goals_count > 100:
-				#	goals_to_be_run_map2check.extend([33,44,55]) # for example
-				#if goals_count > 100:
-				#	goals_to_be_run_map2check.extend(range(80,90)) # for example
-					
-				
 			print('\nRunning FuSeBMC for Cover-Branches:\n')
 			for i in range(1,goals_count+1):
 				isLastGoalSuccessful = False
@@ -1444,12 +1287,9 @@ def verify(strat, prop, fp_mode):
 					try:
 						sedOutFile = open(sedOutputPath, 'w')
 						pSed = subprocess.run(the_args, stdout=sedOutFile,stderr=subprocess.DEVNULL)
-						#map2checkTimeForBranches : can be caculated !!
-						#map2CheckNonDetGenerator = 'symex' if linesInSource >= 11000 else 'fuzzer'
 						map2CheckNonDetGenerator = 'fuzzer'
 						runWithTimeoutEnabled(' '.join(['timeout',str(map2checkTimeForBranches)+'s', map2check_path,'--timeout',str(map2checkTimeForBranches),'--fuzzer-mb', str(MEM_LIMIT_BRANCHES_MAP2CHECK),'--nondet-generator',map2CheckNonDetGenerator , '--target-function','--target-function-name', 'FuSeBMC_custom_func', '--generate-witness',os.path.abspath(sedOutputPath)]), WRAPPER_OUTPUT_DIR)
 						if os.path.isfile(map2checkWitnessFile):
-							#createTestFile(map2checkWitnessFile,sedOutputPath, testCaseFileName ,True)
 							inst_assumptions=__getNonDetAssumptions__(map2checkWitnessFile,INSTRUMENT_OUTPUT_FILE,True)
 							inst_assumptions_len = len(inst_assumptions)
 							run_without_output(' '.join(['cp',map2checkWitnessFile,WRAPPER_OUTPUT_DIR + '/map2check_'+str(goal_id)+'.graphml']))
@@ -1466,18 +1306,8 @@ def verify(strat, prop, fp_mode):
 								hasLastGoalResult = True
 								goals_covered_lst.append(i)
 								goals_covered_by_map2check.append(i)
-								#if i in goals_to_be_covered_with_extra_lst: goals_to_be_covered_with_extra_lst.remove(i)
 								
 						isLastGoalSuccessful = True
-						# comment or uncomment kaled ...
-						#continue: means don't execute ESBMC on goal_id
-						#if len(inst_assumptions)>0: # for example
-						#	continue
-						
-						#if goals_count > 20: # for example
-						#	continue
-						
-						#continue # always # you can not use it again
 					except MyTimeOutException as mytime_ex: raise mytime_ex						
 					except KeyboardInterrupt as kb_ex: raise kb_ex;
 					except Exception as ex: print(TColors.FAIL);  print(ex); print(TColors.ENDC)
@@ -1491,7 +1321,6 @@ def verify(strat, prop, fp_mode):
 				inst_new_esbmc_command_line = inst_esbmc_command_line + ' --witness-output ' + goal_witness_file_full + ' --error-label ' + goal \
 												+ ' -I'+os.path.dirname(os.path.abspath(benchmark)) + param_timeout_esbmc + param_memlimit_esbmc
 												# + ' --timeout ' + str(time_per_goal_for_esbmc)+ 's '
-				#print('COMMAAND:'+inst_new_esbmc_command_line)
 				output = run(inst_new_esbmc_command_line)
 				IsTimeOut(True)
 				if not os.path.isfile(goal_witness_file_full):
@@ -1520,24 +1349,17 @@ def verify(strat, prop, fp_mode):
 
 				if not hasLastGoalResult and i not in goals_to_be_covered_with_extra_lst:
 					goals_to_be_covered_with_extra_lst.append(i)
-			#here we write many testcases;we can write one
-			#for one_list in inst_all_assumptions:
-			#	counter+=1
+			#here we write many testcases;
 		except MyTimeOutException as e:
 			#print('Timeout !!!')
 			pass
 		except KeyboardInterrupt:
 			#print('CTRL + C')
 			pass
-		#IsTimeOut(False)
-		#print('remaining_time_s=',remaining_time_s)
-		#if not IsMetaDataGenerated:
-		#	generate_metadata_from_witness(goal_witness_file_full)
 		
 		if os.path.isfile(goal_witness_file_full) and not os.path.isfile(test_case_file_full):
 			inst_assumptions=__getNonDetAssumptions__(goal_witness_file_full,INSTRUMENT_OUTPUT_FILE, isFromMap2Check)
 			 
-			#inst_all_assumptions.append(inst_assumptions)
 			if len(inst_assumptions)>0 :
 				if len(inst_assumptions) > lastInputInTestcaseCount: lastInputInTestcaseCount = len(inst_assumptions)
 				hasInputInTestcase=True
@@ -1548,7 +1370,6 @@ def verify(strat, prop, fp_mode):
 					goals_covered += 1
 					goals_covered_lst.append(goal_id)
 				
-				#22.06.2020
 				generate_testcase_from_assumption(test_case_file_full,inst_assumptions) 
 			else:
 				if goal_id not in goals_to_be_covered_with_extra_lst: goals_to_be_covered_with_extra_lst.append(goal_id)
@@ -1560,8 +1381,7 @@ def verify(strat, prop, fp_mode):
 			for i in range(lastSuccessfulGoal,goals_count+1):
 				if i not in goals_to_be_covered_with_extra_lst:
 					goals_to_be_covered_with_extra_lst.append(i)
-		
-		#hasInputInTestcase=False # for test   
+		 
 		if MUST_GENERATE_RANDOM_TESTCASE: #and not hasInputInTestcase:
 			if len(goals_to_be_covered_with_extra_lst) > 0:
 				random_goal_id=goals_to_be_covered_with_extra_lst.pop(0)
@@ -1583,10 +1403,7 @@ def verify(strat, prop, fp_mode):
 				randomMaxRange -= 2
 				rndLst = [NonDeterministicCall('0')] + \
 							[NonDeterministicCall(str(randrange(-128,128))) for i in range(1,randomMaxRange)]+[NonDeterministicCall('0')]
-			#randomMaxRange = 36
-			#rndLst = [NonDeterministicCall('0')]
-			#		[NonDeterministicCall('0')] + \
-			#		[NonDeterministicCall('0')] # note : Two Zeros
+
 			generate_testcase_from_assumption(random_testcase_file, rndLst)# was 5
 			
 			
@@ -1611,7 +1428,6 @@ def verify(strat, prop, fp_mode):
 					if i % 3 == 1 : lst4.append(NonDeterministicCall('128'))
 					if i % 3 == 2 : lst4.append(NonDeterministicCall('-256'))
 				
-				#randomMaxRange = 36
 				if singleValueFromMap2Check == 0: singleValueFromMap2Check = 128 # No Sigle Value; default 128
 				elif singleValueFromMap2Check < 0: singleValueFromMap2Check *= -1
 				
@@ -1633,7 +1449,6 @@ def verify(strat, prop, fp_mode):
 					goals_covered_lst.append(goal_loop)
 					
 				
-		#ZipDir(__testSuiteDir__ ,TEST_SUITE_DIR_ZIP)
 		if RUN_COV_TEST:
 			RunCovTest() 
 		if IS_DEBUG:
@@ -1648,31 +1463,11 @@ def verify(strat, prop, fp_mode):
 				print('goals_covered_by_map2check',goals_covered_by_map2check)
 				print('goals_to_be_run_map2check', goals_to_be_run_map2check)
 		
-		#global start_time
-		#print('Execution t_i_m_e:',time.time() - start_time,' Second.')
-
-		# todo: what is the result
-		#if(len(inst_all_assumptions)>0):
-		#	return parse_result("VERIFICATION FAILED",prop)
-		#else:
-		#	return parse_result("VERIFICATION SUCCESSFUL",prop)
-		#if IS_DEBUG:
-			#global start_time
-			#end_time = time.clock()
-			#print(TColors.OKGREEN,'StartTime (s):', start_time, TColors.ENDC)
-			#print(TColors.OKGREEN,'EndTime (s):', end_time, TColors.ENDC)
-			#print(TColors.OKGREEN,'Time (s):', end_time - start_time, TColors.ENDC)
-			#print(os.times())
-		
-		#29.05.2020
 		if is_ctrl_c:
 			return parse_result("something else will get unknown",prop)
 		#Important with False
 		if IsTimeOut(False):
-			#return parse_result("Timed out",prop)
 			print('The Time is out..')
-		#print('remaining_time_s=',remaining_time_s)
-		#return parse_result("VERIFICATION SUCCESSFUL",prop)
 		return 'DONE'
 		
 	if(prop == Property.cover_error_call):
@@ -1714,10 +1509,7 @@ def verify(strat, prop, fp_mode):
 				try:
 					isFromMap2Check = True
 					is_test_file_created = False
-					#RemoveFileIfExists(map2checkWitnessFile)
-					#map2CheckNonDetGenerator = 'symex' if linesInSource >= 11000  else 'fuzzer'
 					map2CheckNonDetGenerator = 'fuzzer'
-					#testCaseFileName = TESTCASE_FILE_FOR_MAP_CHECK
 					witness_file_name = map2checkWitnessFile
 					testCaseFileName =  __testSuiteDir__  + "/testcase_map_fuzzer.xml"
 					runWithTimeoutEnabled(' '.join(['timeout',str(map2checkTimeErrorCall_Fuzzer)+'s', map2check_path,'--timeout',str(map2checkTimeErrorCall_Fuzzer),'--fuzzer-mb', str(MEM_LIMIT_ERROR_CALL_MAP2CHECK), '--nondet-generator', map2CheckNonDetGenerator, '--target-function', '--target-function-name','reach_error','--generate-witness',os.path.abspath(toWorkSourceFile)]), WRAPPER_OUTPUT_DIR)
@@ -1730,7 +1522,6 @@ def verify(strat, prop, fp_mode):
 				except KeyboardInterrupt as kbe: raise kbe
 				except Exception as ex :
 					if IS_DEBUG : print(TColors.FAIL,' Exception', ex , TColors.ENDC)
-					#raise ex
 					pass
 				
 			if MUST_RUN_MAP_2_CHECK_FOR_ERROR_CALL_SYMEX:
@@ -1739,21 +1530,17 @@ def verify(strat, prop, fp_mode):
 					isFromMap2Check = True
 					is_test_file_created = False
 					RemoveFileIfExists(map2checkWitnessFile)
-					#map2CheckNonDetGenerator = 'symex' if linesInSource >= 11000  else 'fuzzer'
 					map2CheckNonDetGenerator = 'symex'
-					#testCaseFileName = TESTCASE_FILE_FOR_MAP_CHECK
 					testCaseFileName =  __testSuiteDir__  + "/testcase_map_symex.xml"
 					witness_file_name = map2checkWitnessFile
 					runWithTimeoutEnabled(' '.join(['timeout',str(map2checkTimeErrorCall_Symex)+'s', map2check_path,'--timeout',str(map2checkTimeErrorCall_Symex),'--fuzzer-mb', str(MEM_LIMIT_ERROR_CALL_MAP2CHECK),'--nondet-generator', map2CheckNonDetGenerator, '--target-function', '--target-function-name','reach_error','--generate-witness',os.path.abspath(toWorkSourceFile)]), WRAPPER_OUTPUT_DIR)
 					if os.path.isfile(map2checkWitnessFile):
 						createTestFile(map2checkWitnessFile,toWorkSourceFile, testCaseFileName ,True)
-						#run_without_output(' '.join(['cp', map2checkWitnessFile, WRAPPER_OUTPUT_DIR + '/map2check_symex.graphml'])) # no need to copy it
 						is_test_file_created=True
 				except MyTimeOutException as e: raise e
 				except KeyboardInterrupt as kbe: raise kbe
 				except Exception as ex :
 					if IS_DEBUG : print(TColors.FAIL,' Exception', ex , TColors.ENDC)
-					#raise ex
 					pass
 			
 			try:
@@ -1810,7 +1597,6 @@ def verify(strat, prop, fp_mode):
 				except KeyboardInterrupt as kbe: raise kbe
 				except Exception as ex : pass
 				
-			#res = parse_result(output, category_property)
 			
 		except MyTimeOutException as e:
 			#print('Timeout !!!')
@@ -1818,7 +1604,6 @@ def verify(strat, prop, fp_mode):
 		except KeyboardInterrupt:
 			#print('CTRL + C')
 			pass
-		#22.06.2020
 		if not is_test_file_created: createTestFile(witness_file_name,toWorkSourceFile, testCaseFileName, isFromMap2Check)
 		
 		if MUST_GENERATE_RANDOM_TESTCASE:
@@ -1862,7 +1647,7 @@ def verify(strat, prop, fp_mode):
 				print(TColors.OKGREEN,'singleValueFromMap2Check=',singleValueFromMap2Check,TColors.ENDC)
 				print(TColors.OKGREEN,'lastInputInTestcaseCount=',lastInputInTestcaseCount,TColors.ENDC)
 				print(TColors.OKGREEN,'map2CheckInputCount=',map2CheckInputCount,TColors.ENDC)
-			# Do We Need +1 ??
+
 			lst4 = [NonDeterministicCall(str(randrange(-singleValueFromMap2Check,singleValueFromMap2Check))) \
 							for i in range(1,lastInputInTestcaseCount)] + \
 						[NonDeterministicCall('0'), NonDeterministicCall('0')]
@@ -1871,24 +1656,16 @@ def verify(strat, prop, fp_mode):
 			AddFileToArchive(tmpTestCaseFile,TEST_SUITE_DIR_ZIP)
 			
 			
-		#ZipDir(__testSuiteDir__ ,TEST_SUITE_DIR_ZIP)
+
 		if RUN_COV_TEST:
 			RunCovTest() 
 		
-		#if IS_DEBUG:
-			#print(os.times())
 		if is_ctrl_c:
 			return parse_result("something else will get unknown",prop)
-		#Important with False
-		#if IsTimeOut(False):
-		#	return parse_result("Timed out",prop)
-		#return res
-		#return parse_result("VERIFICATION SUCCESSFUL",prop)
 		if IsTimeOut(False):
 			print('The Time is out...')
 		return 'DONE'
 		
-	#16.05.2020 END
 	# Get command line
 	esbmc_command_line = get_command_line(strat, prop, arch, benchmark, fp_mode)
 	output = run(esbmc_command_line)
@@ -1900,7 +1677,7 @@ def verify(strat, prop, fp_mode):
 	# Parse output
 	return res
 
-# End of verify mthode
+# End of verify
 
 # Options
 parser = argparse.ArgumentParser()
@@ -1920,7 +1697,6 @@ benchmark = args.benchmark
 strategy = args.strategy
 
 if version:
-	#print (os.popen(esbmc_path + "--version").read()[6:]),
 	print ('v.3.6.6')
 	exit(0)
 if property_file is None:
@@ -1929,7 +1705,7 @@ if property_file is None:
 if benchmark is None:
 	print ("Please, specify a benchmark to verify")
 	exit(1)
-#29.05.2020
+
 if not args.timeout is None :
 	time_out_s = args.timeout
 time_out_s -= time_for_zipping_s
@@ -1950,23 +1726,13 @@ elif "CHECK( init(main()), LTL(G ! call(__VERIFIER_error())) )" in property_file
 	category_property = Property.reach
 elif "CHECK( init(main()), LTL(F end) )" in property_file_content:
 	category_property = Property.termination
-#20.05.2020 TODO : remove reach
-#elif "COVER( init(main()), FQL(COVER EDGES(@CALL(__VERIFIER_error))) )"  in property_file_content:
-#	category_property = Property.cover_error_call
 elif "COVER( init(main()), FQL(COVER EDGES(@CALL(reach_error))) )"  in property_file_content:
 	category_property = Property.cover_error_call
-#elif "COVER( init(main()), FQL(COVER EDGES(@CALL(__VERIFIER_error))) )" in property_file_content:
-#	category_property = Property.reach
 elif "COVER( init(main()), FQL(COVER EDGES(@DECISIONEDGE)) )" in property_file_content:
 	category_property = Property.cover_branches
 else:
 	print ("Unsupported Property") 
 	exit(1)
-
-#TEST_SUITE_DIR_ZIP_PA='./results-verified/test-comp20_prop-coverage-branches.'+os.path.basename(benchmark)
-#if not os.path.isdir(TEST_SUITE_DIR_ZIP_PA):
-#	os.makedirs(TEST_SUITE_DIR_ZIP_PA)
-#TEST_SUITE_DIR_ZIP=TEST_SUITE_DIR_ZIP_PA+'/test-suite.zip'
 
 if not os.path.isdir(WRAPPER_OUTPUT_DIR):
 	os.mkdir(WRAPPER_OUTPUT_DIR)
@@ -1991,9 +1757,7 @@ INSTRUMENT_OUTPUT_GOALS_FILE = WRAPPER_OUTPUT_DIR+'/fusebmc_instrument_output/go
 INSTRUMENT_OUTPUT_GOALS_DIR = WRAPPER_OUTPUT_DIR+'/fusebmc_instrument_output/goals_output/'
 if TEST_SUITE_DIR_ZIP == '':
 	TEST_SUITE_DIR_ZIP = WRAPPER_OUTPUT_DIR + '/test-suite.zip'
-#fdebug = open(WRAPPER_OUTPUT_DIR + '/fdebug.txt','w')
-#fdebug.close()
-#os.path.fil
+
 if  category_property == Property.cover_branches or category_property == Property.cover_error_call:
 	MakeFolderEmptyORCreate(INSTRUMENT_OUTPUT_DIR)
 	RemoveFileIfExists(INSTRUMENT_OUTPUT_FILE)
@@ -2001,13 +1765,12 @@ if  category_property == Property.cover_branches or category_property == Propert
 		RemoveFileIfExists(INSTRUMENT_OUTPUT_GOALS_FILE)
 		if MUST_RUN_MAP_2_CHECK_FOR_BRANCHES:
 			map2checkWitnessFile= WRAPPER_OUTPUT_DIR + '/witness.graphml'
-		#MakeFolderEmptyORCreate(INSTRUMENT_OUTPUT_GOALS_DIR)
+
 	MakeFolderEmptyORCreate(__testSuiteDir__)
 	
 	if category_property == Property.cover_error_call:
 		if MUST_RUN_MAP_2_CHECK_FOR_ERROR_CALL_FUZZER or MUST_RUN_MAP_2_CHECK_FOR_ERROR_CALL_SYMEX:
 			map2checkWitnessFile= WRAPPER_OUTPUT_DIR + '/witness.graphml'
-			#RemoveFileIfExists(map2checkWitnessFile)
 	
 	RemoveFileIfExists(TEST_SUITE_DIR_ZIP)
 	WriteMetaDataFromWrapper()
@@ -2017,20 +1780,11 @@ if  category_property == Property.cover_branches or category_property == Propert
 		print("FuSeBMC_inustrment cannot be found..")
 		#exit(1)
 	benchmarkbase=os.path.basename(benchmark)
-	#strategy
-	#benchmarkbase in ["sum02-1.c"] and 
+
 	result = verify(strategy, category_property, False)
-	#print(get_result_string(result))
 	print(result)
 	exit(0)
 	
-	#assumptionParser=AssumptionParser('/home/kaled/counter_example/GOAL_2.graphml');
-	#assumptionParser.parse()
-	#print(assumptionParser.assumptions)
-	#for ass in assumptionParser.assumptions:
-	#	ass.debugInfo()
-	#exit(1)
-
 
 result = verify(strategy, category_property, False)
 print (get_result_string(result))
