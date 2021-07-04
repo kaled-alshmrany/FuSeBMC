@@ -2,7 +2,7 @@
 <!DOCTYPE benchmark PUBLIC "+//IDN sosy-lab.org//DTD BenchExec benchmark 1.18//EN" "https://www.sosy-lab.org/benchexec/benchmark-1.18.dtd">
 <benchmark tool="testcov" displayName="TestCov" timelimit="5 h" hardtimelimit="315 min" memlimit="7 GB" cpuCores="2">
 
-  <!--  require cpuModel="Intel Xeon E3-1230 v5 @ 3.40 GHz" cpuCores="2"/ -->
+  <!-- require cpuModel="Intel Xeon E3-1230 v5 @ 3.40 GHz" cpuCores="2"/ -->
 
   <resultfiles>**output/**</resultfiles>
   
