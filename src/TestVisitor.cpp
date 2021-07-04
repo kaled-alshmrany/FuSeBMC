@@ -40,12 +40,6 @@ using namespace clang;
 using namespace std;
 #define l(line) std::cout << line << std::endl;
 
-  /*bool TestVisitor::VisitDecl(Decl *decl)
-  {
-      return
-  }*/
-
-
  
  tok::TokenKind getTokenKind(SourceLocation Loc, const SourceManager &SM, const ASTContext *Context) 
   {
@@ -103,21 +97,16 @@ using namespace std;
                     l("\n*********************************************");
                     
                 }
-                
-                //TheRewriter.InsertTextAfter(Else->getLocStart().getLocWithOffset(-1),"\n/*E_THEN*/}\n");
+                  
             }
-                //SourceLocation endOfThen = Lexer::findLocationAfterToken(Then->getLocEnd(),tok::semi,sm,lo,true);
-            //TheRewriter.InsertTextAfter(endOfThen.getLocWithOffset(0),"\n/*E_THEN*/}\n");
+                
         }
-        //TheRewriter.InsertTextAfter(ifs->getThen()->getLocEnd().getLocWithOffset(0),"X");
         
         if(Else)
         {
             SourceLocation nl = Lexer::findLocationAfterToken(Else->getLocEnd(),tok::semi,sm,lo,true);
             SourceLocation endd =Lexer::getLocForEndOfToken(Else->getLocEnd(), 0, sm, lo);
             
-            //TheRewriter.InsertTextAfter(Else->getLocStart().getLocWithOffset(0),"X");
-            //TheRewriter.InsertTextAfter(nl.getLocWithOffset(0),"Y");
         }
         
     }
