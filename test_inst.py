@@ -66,7 +66,6 @@ if not os.path.isfile(MY_INSTRUMENT_EXE_PATH):
     exit(1)
 subfolders, files = run_fast_scandir(MY_FOLDER, [".i"])
 err_files=[]
-#print(files)
 try:
     for fil in files:
         RemoveFileIfExists(INSTRUMENTED_OUT_FILE)
