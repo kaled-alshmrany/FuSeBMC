@@ -66,27 +66,7 @@ bool MyASTConsumer::HandleTopLevelDecl(DeclGroupRef d)
 
   return true; // keep going
 }
-/***/
-/*class MyASTConsumer2:public ASTConsumer
-{
- public:
-     MyASTConsumer2(Rewriter &Rewrite,MyHolder& H) : rv(Rewrite,H),TheHolder(H) { }
-     virtual bool HandleTopLevelDecl(DeclGroupRef d);
-     TestVisitor rv;
-     MyHolder& TheHolder;
-};
- 
-bool MyASTConsumer2::HandleTopLevelDecl(DeclGroupRef d)
-{
-  typedef DeclGroupRef::iterator iter;
-  for (iter b = d.begin(), e = d.end(); b != e; ++b)
-  {
-    rv.TraverseDecl(*b);
-  }
 
-  return true; // keep going
-}*/
-/**/
 void usage(char * prog)
 {
     std::cout << prog <<" --input inp --output outpt [-h|--help] [--goal-output-file file] [--show-parse-tree] "<<std::endl;
@@ -125,17 +105,13 @@ std::vector<std::string> * split(std::string s,std::string del)
      vect->push_back(s);
     return vect;
 }
-/**./a/b/c is file or dir ?? **/
+
 bool createDirs(std::string & path,bool isDir = true)
 {
     llvm::SmallString<1024> OutputDirectory(path);
     if(!isDir)
         llvm::sys::path::remove_filename(OutputDirectory);
-    //const auto abs_path = clang::tooling::getAbsolutePath(path);
-    //std::cout << "OutputDirectory :"<< OutputDirectory.c_str() << std::endl;
-    //const auto directory = llvm::sys::path::parent_path(abs_path);
-    //const auto directory = llvm::sys::path::root_path(path);
-    //std::cout << "Create :"<< directory.data() << std::endl;
+
     if (!OutputDirectory.empty())
     {
         if (auto ec = llvm::sys::fs::create_directories(OutputDirectory)) 
@@ -251,7 +227,7 @@ int main(int argc, char **argv)
       {
           myOptions->addGoalAtEndOfFunc = true;
       }
-      // 20.05.2020
+
       else if(strcmp(the_arg,"--add-label-in-func")==0)
       {
           myOptions->addLabelInFunc = true;
@@ -331,37 +307,14 @@ int main(int argc, char **argv)
   SmallVector<char,1024> path_vect;
   llvm::sys::fs::real_path(argv[0],path_vect,true);
   std::string current_folder = llvm::sys::path::parent_path(path_vect.data()).str();
-  //std::cout << path_vect.data() << std::endl;
-  //std::cout << llvm::sys::path::parent_path(path_vect.data()).str() << std::endl;
-  
-  /*argc=6;
-  char *argvv[]={"./my_instrument", "./examples/a.cpp", "./examples/uftp_out.c" , "./examples/uftp_goals.txt",
-  "./examples/goals_out", "-I/home/kaled/sdb1/uFTP/library", "-DOPENSSL_ENABLE"};
-  argv=argvv;
-  */
-  
-  
-   /*std::string inputFile(argv[1]);
-   std::string outputFile(argv[2]);
-   std::string goalOutputFile(argv[3]);
-   std::string goalProFuncDir(argv[4]);
-   if(goalProFuncDir != "-nogoalProFunc") */
-   GoalCounter::getInstance().mustGenerateFuncLabelMap=!myOptions->goalProFuncOutputDir.empty();
-  //std::string fileName(argv[argc - 1]);
-    
-  
  
-
+   GoalCounter::getInstance().mustGenerateFuncLabelMap=!myOptions->goalProFuncOutputDir.empty();
+    
+   
   CompilerInstance compiler;
   DiagnosticOptions diagnosticOptions;
   compiler.createDiagnostics();
-  //compiler.createDiagnostics(argc, argv);
-  
-  /*for(int i=0;i<new_args_count;i++)
-  {
-      std::cout << i << "=" << new_argv[i] << std::endl;
-  }*/
-  
+
   // Create an invocation that passes any flags to preprocessor
   CompilerInvocation *Invocation = new CompilerInvocation;
   bool compile_result = CompilerInvocation::CreateFromArgs(*Invocation, new_argv, new_argv + new_args_count - 1, compiler.getDiagnostics());
@@ -383,27 +336,6 @@ int main(int argc, char **argv)
 
   HeaderSearchOptions &headerSearchOptions = compiler.getHeaderSearchOpts();
 
-  // <Warning!!> -- Platform Specific Code lives here
-  // This depends on A) that you're running linux and
-  // B) that you have the same GCC LIBs installed that
-  // I do.
-  // Search through Clang itself for something like this,
-  // go on, you won't find it. The reason why is Clang
-  // has its own versions of std* which are installed under
-  // /usr/local/lib/clang/<version>/include/
-  // See somewhere around Driver.cpp:77 to see Clang adding
-  // its version of the headers to its include path.
-  // To see what include paths need to be here, try
-  // clang -v -c test.c
-  // or clang++ for C++ paths as used below:
-  /*headerSearchOptions.AddPath("/usr/include/c++/4.6",clang::frontend::Angled,false,false);
-  headerSearchOptions.AddPath("/usr/include/c++/4.6/i686-linux-gnu",clang::frontend::Angled,false,false);
-  headerSearchOptions.AddPath("/usr/include/c++/4.6/backward",clang::frontend::Angled,false,false);
-  headerSearchOptions.AddPath("/usr/local/include",clang::frontend::Angled,false,false);
-  headerSearchOptions.AddPath("/usr/local/lib/clang/3.3/include",clang::frontend::Angled,false,false);
-  headerSearchOptions.AddPath("/usr/include/i386-linux-gnu",clang::frontend::Angled,false,false);
-  headerSearchOptions.AddPath("/usr/include",clang::frontend::Angled,false,false);
-  */
   std::ifstream includesFile;
   includesFile.open(current_folder + "/myincludes.txt");
   if (includesFile)
@@ -416,18 +348,7 @@ int main(int argc, char **argv)
       }
       includesFile.close();      
   }
-  //return 0;
-   
-  //headerSearchOptions.AddPath(std::string("/home/kaled/clang_base/lib/clang/6.0.0/include"), clang::frontend::Angled, false, false);
-  //headerSearchOptions.AddPath(std::string("/usr/include"),clang::frontend::Angled, false, false);
-  //headerSearchOptions.AddPath(std::string("/usr/include/linux"), clang::frontend::Angled, false, false);
-  //headerSearchOptions.AddPath(std::string("/usr/include/c++/9/tr1"), clang::frontend::Angled, false, false);
-  //headerSearchOptions.AddPath(std::string("/usr/include/c++/9"), clang::frontend::Angled, false, false);
-  //headerSearchOptions.AddPath(std::string("/home/kaled/sdb1/uFTP/library"), clang::frontend::Angled,false,false);
-    
-  // </Warning!!> -- End of Platform Specific Code
-
-
+ 
   // Allow C++ code to get rewritten
   LangOptions langOpts;
   langOpts.GNUMode = 1; 
@@ -472,15 +393,6 @@ int main(int argc, char **argv)
       exit(-1);
   }
   MyASTConsumer astConsumer(Rewrite,myHolder);
-  //MyASTConsumer2 astConsumer(Rewrite,myHolder);
-
-  // Convert <file>.c to <file_out>.c
-  /*std::string outName (fileName);
-  size_t ext = outName.rfind(".");
-  if (ext == std::string::npos)
-     ext = outName.length();
-  outName.insert(ext, "_out");
-   */
   
   std::error_code OutErrorInfo;
   std::error_code ok;
