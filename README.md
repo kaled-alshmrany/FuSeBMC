@@ -30,6 +30,8 @@ https://link.springer.com/chapter/10.1007/978-3-030-71500-7_19
         llvm 6.0.0
         
         Python 3.6.0
+        
+        AFL 2.57
 
 <br /><br />
 
@@ -112,4 +114,4 @@ To reproduce Test-Comp 2021' results, follow the instruction in the file "instru
 
 
 Note:<br />
-Release 3.6.6 do not need to compile it
+Release 4.1.12 do not need to compile it
