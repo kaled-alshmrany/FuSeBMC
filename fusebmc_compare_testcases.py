@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#./fusebmc_compare_testcases.py --s1 /home/hosam/sdb1/compare/local --s2 /home/hosam/sdb1/compare/server
+#./fusebmc_compare_testcases.py --s1 /home/kaled/sdb1/compare/local --s2 /home/kaled/sdb1/compare/server
 
 import argparse
 import os

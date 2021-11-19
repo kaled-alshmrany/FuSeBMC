@@ -1,0 +1,13 @@
+#ifdef FUSEBMC_USE_BITSET
+void * fuSeBMC_bitset_arr = NULL;
+int fuSeBMC_env_goals_cnt = 0;
+
+////
+struct queue_entry* q;
+q = queue;
+	while (q)
+	{
+		q->favored = 0;
+		q = q->next;
+	}
+/////
