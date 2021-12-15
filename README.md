@@ -35,7 +35,7 @@ https://link.springer.com/chapter/10.1007/978-3-030-71500-7_19
 
 <br /><br />
 
-* To compile the tool through the FuSeBMC/FuSeBMC_instrument/makefile:
+* To compile the tool through the FuSeBMC/FuSeBMC_instrument/make-release.sh:
 
  
       make clean release
