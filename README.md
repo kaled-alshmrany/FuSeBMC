@@ -107,11 +107,13 @@ To reproduce Test-Comp 2021' results, follow the instruction in the file "instru
       1- Folder called "test-suite" has the XML files.<br />
       2- Folder called "test-suite.zip" to be used for the tool TestCov.<br />
 
-<br /><br />
 
 * The output of the competition "Test-Comp21" will store in two folders "results" and "results-verified".
 <br /><br />
 
 
-Note:<br />
-Release 4.1.12 do not need to compile it
+
+
+# Acknowledgments
+
+The Institute of Public Administration - IPA - Saudi Arabia (https://www.ipa.edu.sa/en-us/Pages/default.aspx) and the ScorCH project (https://lnkd.in/eSUZFwT) support the FuSeBMC development.
