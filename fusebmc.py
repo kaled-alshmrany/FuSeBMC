@@ -31,7 +31,9 @@ from fusebmc_util.assumptions import AssumptionHolder, AssumptionParser, Metadat
 from fusebmc_util.graph import Vertex, Graph,shortest,dijkstra
 if RUN_TESTCOV: from fusebmc_util.testcov import *
 #os.system('clear')
-FUSEBMC_VERSION = 'v.4.1.11'
+FUSEBMC_VERSION = 'v.4.1.14'
+
+
 
 # Start time for this script
 start_time = time.time()
@@ -44,6 +46,7 @@ witness_file_name=''
 toWorkSourceFile=''
 arch=''
 infinteWhileNum = 0
+isConcurrency = False
 
 WRAPPER_Output_Dir ='./fusebmc_output/'
 TestSuite_Dir = 'test-suite/'
@@ -614,7 +617,7 @@ def run(cmd_line):
 			out_str += outs[loop]
 	return out_str
 
-def runWithTimeoutEnabled(cmd_line,pCwd=None):
+def runWithTimeoutEnabled(cmd_line,pCwd=None,p_process_name=None):
 	global is_ctrl_c
 	if(SHOW_ME_OUTPUT): print (TColors.BOLD, '\nCommand:\n', cmd_line ,TColors.ENDC)
 	the_args = shlex.split(cmd_line)
@@ -660,7 +663,8 @@ def runWithTimeoutEnabled(cmd_line,pCwd=None):
 				#os.killpg(os.getpgid(p.pid), signal.SIGTERM)
 				#os.killpg(os.getpgid(p.pid), signal.SIGKILL)
 			p.terminate()
-			#p.kill()
+			time.sleep(0.5)
+			p.kill()
 			#print('Killed......')
 		except:
 			#print('EXXXXXXXX')
@@ -723,8 +727,12 @@ def runWithoutTimeoutEnabled(cmd_line,pCwd=None,forceOutput = False):
 def get_command_line(strat, prop, arch, benchmark, fp_mode):
 	global goals_count
 	global runNumber
-	
-	command_line = ESBMC_EXE + esbmc_dargs
+	global stdCFuncsLst, isConcurrency
+	if isConcurrency or len(stdCFuncsLst) > 0 :
+		command_line = ESBMC_CONCURRENCY_EXE + esbmc_dargs
+	else:
+		command_line = ESBMC_EXE + esbmc_dargs
+
 	command_line += benchmark + " --quiet "
 	if arch == 32:
 		command_line += "--32 "
@@ -768,18 +776,26 @@ def get_command_line(strat, prop, arch, benchmark, fp_mode):
 	elif prop == Property.cover_branches:
 		if(goals_count>100):
 			if (goals_count<250):
-				command_line += "--max-k-step 30 --unwind 1 --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
+				command_line += "--max-k-step 30 --unwind 1 --no-pointer-check --no-bounds-check --no-slice "
 			else:
-				command_line += "--max-k-step 10 --unwind 1 --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
+				command_line += "--max-k-step 10 --unwind 1 --no-pointer-check --no-bounds-check --no-slice "
 		else:#(goals_count<100)
-			command_line += "--unlimited-k-steps --unwind 1 --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
+			command_line += "--unlimited-k-steps --unwind 1 --no-pointer-check --no-bounds-check --no-slice "
+		if isConcurrency or len(stdCFuncsLst) > 0:
+			pass
+		else:
+			command_line += "--interval-analysis "
 		#20.05.2020 + #03.06.2020 kaled: adding the option "--unlimited-k-steps" for coverage_error_call .... --max-k-step 5
 	elif prop == Property.cover_error_call:
 	#kaled : 03.06.2020 --unwind 10 --partial-loops
 		if ERRORCALL_RUNTWICE_ENABLED and runNumber ==1:
-			command_line += "--partial-loops --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
+			command_line += "--partial-loops --no-pointer-check --no-bounds-check   --no-slice "
 		else:
-			command_line += "--unlimited-k-steps --no-pointer-check --no-bounds-check --interval-analysis --no-slice "
+			command_line += "--unlimited-k-steps --no-pointer-check --no-bounds-check  --no-slice "
+		if isConcurrency or len(stdCFuncsLst) > 0:
+			pass
+		else:
+			command_line += "--interval-analysis "
 	else:
 		print ("Unknown property")
 		exit(1)
@@ -886,6 +902,10 @@ def ReplaceGoalLabelWithFuseGoalCalledMethod(src_file, dest_file):
 				
 				fout.write(line)
 
+def getFullLibName(p_lib, p_arch, p_isConcurrency):
+	con = '_c' if p_isConcurrency == True else '';
+	return '-l'+p_lib+con+'_'+str(arch)
+
 def RunAFLForCoverBranches(instrumented_afl_file):
 	'''
 	@Return lstFuSeBMC_FuzzerGoals : list of goals covered by Fuzzer.
@@ -897,7 +917,7 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 	global lstFuSeBMC_GoalTracerGoals
 	global remaining_time_s
 	global goals_count, infinteWhileNum, selectiveInputsLst
-	global stdCFuncsLst
+	global stdCFuncsLst, isConcurrency
 	
 	FuSeBMCFuzzerLib_CoverBranches_Seed_Dir = os.path.abspath(os.path.join(WRAPPER_Output_Dir, 'seeds'))
 	MakeFolderEmptyORCreate(FuSeBMCFuzzerLib_CoverBranches_Seed_Dir)
@@ -937,7 +957,7 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 	#afl_min_length = -1
 	if IS_DEBUG:
 		print('    afl_min_length=', afl_min_length , 'Byte(s)')
-		print('    Timeout=', FuSeBMCFuzzerLib_COVERBRANCHES_TIMEOUT , 'Second(s)')
+		#print('    Timeout=', FuSeBMCFuzzerLib_COVERBRANCHES_TIMEOUT , 'Second(s)')
 		print('    Remaining_time_s =',remaining_time_s,'Second(s).')
 	try:
 		lstGoalsFuzzerInput = [gl for gl in lstFuSeBMC_GoalTracerGoals]
@@ -967,7 +987,7 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 								'-m'+str(arch), '-Wno-attributes', #'-D__alias__(x)=',
 								'-o',afl_fuzzer_bin,
 								'-L./FuSeBMC_FuzzerLib/',instrumented_afl_file,
-								'-lFuSeBMC_FuzzerLib_'+str(arch),'-lm','-lpthread']
+								getFullLibName('FuSeBMC_FuzzerLib',arch, isConcurrency),'-lm','-lpthread']
 		for func in stdCFuncsLst:
 			compile_afl_lst.append('-D ' + func + '='+func+'_XXXX')
 		runWithTimeoutEnabled(' '.join(compile_afl_lst))
@@ -985,7 +1005,7 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 								'-m'+str(arch), '-Wno-attributes', #'-D__alias__(x)=',
 								'-o',tcgen_bin,
 								'-L./FuSeBMC_TCGen/',instrumented_afl_file,
-								'-lFuSeBMC_TCGen_'+str(arch),'-lm','-lpthread']
+								getFullLibName('FuSeBMC_TCGen', arch, isConcurrency),'-lm','-lpthread']
 		for func in stdCFuncsLst:
 			compile_tcgen_lst.append('-D ' + func + '='+func+'_XXXX')
 		runWithTimeoutEnabled(' '.join(compile_tcgen_lst))
@@ -1012,22 +1032,29 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 			fuzzTimeout += FuSeBMCFuzzerLib_COVERBRANCHES_INFINITE_WHILE_TIME_INCREMENT
 			fusebmcStageParam = '-F ' + str(FuSeBMCFuzzerLib_COVERBRANCHES_FUSEBMC_STAGE_ITERATION_INFINITE_WHILE)
 		
+		#FusEBMC_CONST:
+		fuzzed_app_timeout = FuSeBMCFuzzerLib_COVERBRANCHES_FUZZED_APP_TIMEOUT if (isConcurrency == False and len(stdCFuncsLst) == 0) else '250+'
+		fuzzed_app_memlimit = FuSeBMCFuzzerLib_COVERBRANCHES_FUZZED_APP_MEM_LIMIT if (isConcurrency == False and len(stdCFuncsLst) == 0) else '2000'
+		fuSeBMC_max_fuzz_length = '' if (isConcurrency == False and len(stdCFuncsLst) == 0) else '-L 5000'
+		if (isConcurrency or len(stdCFuncsLst) > 0) and fuzzTimeout < 400: fuzzTimeout = 400
+		if IS_DEBUG: print('    ','Timeout =',fuzzTimeout,'Second(s).')
+		
 		afl_command = ' '.join(['timeout' ,'--signal=SIGTERM', '--kill-after=10s', str(fuzzTimeout),
 			 AFL_HOME_PATH + '/afl-fuzz',
 			#'-n',
 			'-Z','-A','2',
-			'-l',str(afl_min_length),'-D' , fuSeBMC_run_id,
+			'-l',str(afl_min_length),fuSeBMC_max_fuzz_length, '-D' , fuSeBMC_run_id,
 			'-E',str(FuSeBMCFuzzerLib_COVERBRANCHES_SEED_EXPAND_MAX_SIZE),
 			'-G', str(goals_count),
 			fusebmcStageParam, 
 			'-U', str(FuSeBMCFuzzerLib_COVERBRANCHES_FUSEBMC_SF_STAGE_ITERATION),
 			'-i', l_seed_dir,'-o' ,'./FuSeBMCFuzzerOutput',
-			'-m', FuSeBMCFuzzerLib_COVERBRANCHES_FUZZED_APP_MEM_LIMIT,
-			'-t',FuSeBMCFuzzerLib_COVERBRANCHES_FUZZED_APP_TIMEOUT,
+			'-m',fuzzed_app_memlimit ,
+			'-t',fuzzed_app_timeout,
 			'--', afl_fuzzer_bin])
 		#print('afl_command:', afl_command)
 		#exit(0)
-		runWithTimeoutEnabled(afl_command, WRAPPER_Output_Dir)
+		runWithTimeoutEnabled(afl_command, WRAPPER_Output_Dir,FuSeBMCProcessName.Afl_fuzz)
 	
 		if os.path.isfile(afl_result_file):
 			with open(afl_result_file,'r') as f:
@@ -1035,27 +1062,28 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 		#lstFuzzerSeeds = [] # make empty
 		lstFuSeBMC_FuzzerGoals_tmp = GetGoalListFromFile(FuSeBMCFuzzerLib_CoverBranches_Output_Covered_Goals_File)
 		lstFuSeBMC_FuzzerGoals_tmp = [gl for gl in lstFuSeBMC_FuzzerGoals_tmp if gl not in lstGoalsFuzzerInput]
-
-		#print('fuSeBMC_run_id:', os.environ[fuSeBMC_run_id])
-		#os.unsetenv(fuSeBMC_run_id)
-		#sys.exit(0)
-		
 		print('    lstFuSeBMC_FuzzerGoals_tmp',lstFuSeBMC_FuzzerGoals_tmp, '\n')
 		print('    len(lstFuSeBMC_FuzzerGoals_tmp)=',len(lstFuSeBMC_FuzzerGoals_tmp), '\n')
 		
 		return lstFuSeBMC_FuzzerGoals_tmp
-	except MyTimeOutException as mytime_ex: raise mytime_ex
+	except MyTimeOutException as mytime_ex:
+		global lstFuSeBMC_FuzzerGoals
+		lstFuSeBMC_FuzzerGoals_tmp = GetGoalListFromFile(FuSeBMCFuzzerLib_CoverBranches_Output_Covered_Goals_File)
+		lstFuSeBMC_FuzzerGoals = [gl for gl in lstFuSeBMC_FuzzerGoals_tmp if gl not in lstGoalsFuzzerInput]
+		print('    lstFuSeBMC_FuzzerGoals',lstFuSeBMC_FuzzerGoals,' =',len(lstFuSeBMC_FuzzerGoals),'\n')
+		raise mytime_ex
 	except KeyboardInterrupt as kb_ex: raise kb_ex;
 	except Exception as ex: 
 		HandleException(ex)
 		return None
 
 def RunAFLForCoverBranches_Run2():
-	global lstFuzzerSeeds
+	global lstFuzzerSeeds2
 	global lstFuSeBMC_GoalTracerGoals, lstFuSeBMC_FuzzerGoals
 	global FuSeBMCFuzzerLib_CoverBranches_Max_Testcase_Size_Btyes
 	global goals_count, infinteWhileNum, selectiveInputsLst
 	
+	RemoveFileIfExists(FuSeBMCFuzzerLib_CoverBranches_Output_Covered_Goals_File)
 	lstFuSeBMC_FuzzerGoals_Run2 = []
 	FuSeBMCFuzzerLib_CoverBranches_Seed2_Dir = os.path.abspath(os.path.join(WRAPPER_Output_Dir, 'seeds2'))
 	MakeFolderEmptyORCreate(FuSeBMCFuzzerLib_CoverBranches_Seed2_Dir)
@@ -1123,9 +1151,10 @@ def RunAFLForCoverBranches_Run2():
 	return lstFuSeBMC_FuzzerGoals_Run2
 	
 def RunAFLForErrorCall():
-	global lstFuzzerSeeds, infinteWhileNum, selectiveInputsLst
+	global lstFuzzerSeeds, infinteWhileNum
+	global selectiveInputsLst, isSelectiveInputsFromMain
 	global current_process_name
-	global stdCFuncsLst
+	global stdCFuncsLst, isConcurrency
 	
 	afl_fuzzer_src = WRAPPER_Output_Dir+'/instrumented_afl.c'
 	afl_fuzzer_bin = os.path.abspath(WRAPPER_Output_Dir+'/afl.exe')
@@ -1256,7 +1285,7 @@ def RunAFLForErrorCall():
 									#'-D write=fuSeBMC_write',
 									'-I'+os.path.dirname(benchmark),
 									'-m'+str(arch), afl_fuzzer_src, '-o',afl_fuzzer_bin,
-									'-L./FuSeBMC_FuzzerLib/','-lFuSeBMC_FuzzerLib_'+str(arch),'-lm','-lpthread']
+									'-L./FuSeBMC_FuzzerLib/',getFullLibName('FuSeBMC_FuzzerLib',arch, isConcurrency),'-lm','-lpthread']
 		for func in stdCFuncsLst:
 			compile_afl_lst.append('-D ' + func + '='+func+'_XXXX')
 		runWithTimeoutEnabled(' '.join(compile_afl_lst))
@@ -1266,9 +1295,9 @@ def RunAFLForErrorCall():
 		compile_tcgen_lst = [FuSeBMCFuzzerLib_TESTCASE_GEN_CC, FuSeBMCFuzzerLib_TESTCASE_GEN_CC_PARAMS,
 									'-D abort=fuSeBMC_abort_prog', '-I'+os.path.dirname(benchmark),
 									'-m'+str(arch), afl_fuzzer_src, '-o',tcgen_bin,
-									'-L./FuSeBMC_TCGen/','-lFuSeBMC_TCGen_'+str(arch),'-lm','-lpthread']
+									'-L./FuSeBMC_TCGen/',getFullLibName('FuSeBMC_TCGen' , arch, isConcurrency),'-lm','-lpthread']
 		for func in stdCFuncsLst:
-			compile_afl_lst.append('-D ' + func + '='+func+'_XXXX')
+			compile_tcgen_lst.append('-D ' + func + '='+func+'_XXXX')
 		runWithTimeoutEnabled(' '.join(compile_tcgen_lst))
 		if not os.path.isfile(tcgen_bin): raise Exception (tcgen_bin + ' Not found.')
 		
@@ -1277,31 +1306,40 @@ def RunAFLForErrorCall():
 		os.environ["AFL_SKIP_CRASHES"] = "1"
 		os.environ["AFL_FAST_CAL"] = "1"
 		print('    ','Start FuSeBMCFuzzer ...')
-		if IS_DEBUG: print('    ','Timeout =',FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT,'Second(s).')
+		
 		
 		fusebmcStageParam = ''
 		fuzzTimeout = FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT
 		if FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_ENABLED and \
 			selectiveInputsLst is not None and len(selectiveInputsLst)>0:
-				if seedMaxSize < 256 : seedMaxSize = 256
+				if seedMaxSize < 512 : seedMaxSize = 512
 				fuzzTimeout += FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_TIME_INCREMENT
-				fusebmcStageParam = '-F ' + str(FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_ITERATIONS)
+				fusebmcStage = FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_ITERATIONS
+				if isSelectiveInputsFromMain : fusebmcStage += 1000
+				fusebmcStageParam = '-F ' + str(fusebmcStage)
 		elif(ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED and infinteWhileNum > 0):
 			fuzzTimeout += FuSeBMCFuzzerLib_ERRORCALL_INFINITE_WHILE_TIME_INCREMENT
 			selectiveInputsLst = [str(i) for i in range(1,18)]
 			writeSelectiveInputsLstToFile()
 			fusebmcStageParam = '-F ' + str(FuSeBMCFuzzerLib_ERRORCALL_FUSEBMC_STAGE_ITERATION_INFINITE_WHILE)
 		
+		#FusEBMC_CONST:
+		fuzzed_app_timeout = FuSeBMCFuzzerLib_ERRORCALL_FUZZED_APP_TIMEOUT if (isConcurrency == False and len(stdCFuncsLst) == 0) else '250+'
+		fuzzed_app_memlimit = FuSeBMCFuzzerLib_ERRORCALL_FUZZED_APP_MEM_LIMIT if (isConcurrency == False and len(stdCFuncsLst) == 0) else '2000'
+		fuSeBMC_max_fuzz_length = '' if (isConcurrency == False and len(stdCFuncsLst) == 0) else '-L 5000'
+		if (isConcurrency or len(stdCFuncsLst) > 0) and fuzzTimeout < 400: fuzzTimeout = 400
+		if IS_DEBUG: print('    ','Timeout =',fuzzTimeout,'Second(s).')
+		#exit(0)
 		runWithTimeoutEnabled(' '.join(['timeout', '-k','2s', str(fuzzTimeout),
 									AFL_HOME_PATH + '/afl-fuzz',
 									#'-n',
-									'-Z','-A','1','-l',str(seedMaxSize), '-D' , fuSeBMC_run_id,
+									'-Z','-A','1','-l',str(seedMaxSize), fuSeBMC_max_fuzz_length, '-D' , fuSeBMC_run_id,
 									'-E',str(FuSeBMCFuzzerLib_ERRORCALL_SEED_EXPAND_MAX_SIZE),
 									fusebmcStageParam,
 									'-U',str(FuSeBMCFuzzerLib_ERRORCALL_FUSEBMC_SF_STAGE_ITERATION),
 									'-i', seed_dir,'-o' ,'./FuSeBMCFuzzerOutput',
-									'-m', FuSeBMCFuzzerLib_ERRORCALL_FUZZED_APP_MEM_LIMIT,
-									'-t',FuSeBMCFuzzerLib_ERRORCALL_FUZZED_APP_TIMEOUT,
+									'-m', fuzzed_app_memlimit,
+									'-t',fuzzed_app_timeout,
 									'--', afl_fuzzer_bin]),WRAPPER_Output_Dir)
 		if os.path.isfile(fuSeBMC_Fuzzer_testcase):
 			print('    ','Testcase is generated.','\n')
@@ -1312,6 +1350,7 @@ def RunAFLForErrorCall():
 
 def RunAFLForErrorCall_Run2():
 	global lstFuzzerSeeds,infinteWhileNum, selectiveInputsLst
+	global stdCFuncsLst, isConcurrency
 	
 	afl_fuzzer_bin = os.path.abspath(WRAPPER_Output_Dir+'/afl.exe')
 	if not os.path.isfile(afl_fuzzer_bin):
@@ -1360,16 +1399,22 @@ def RunAFLForErrorCall_Run2():
 		elif(ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED and infinteWhileNum > 0):
 			if afl_min_length < 256 : afl_min_length = 256
 			fusebmcStageParam = '-F ' + str(FuSeBMCFuzzerLib_ERRORCALL_FUSEBMC_STAGE_ITERATION_INFINITE_WHILE)
+		
+		#FusEBMC_CONST:
+		fuzzed_app_timeout = FuSeBMCFuzzerLib_ERRORCALL_FUZZED_APP_TIMEOUT if (isConcurrency == False  and len(stdCFuncsLst) == 0) else '250+'
+		fuzzed_app_memlimit = FuSeBMCFuzzerLib_ERRORCALL_FUZZED_APP_MEM_LIMIT if (isConcurrency == False and len(stdCFuncsLst) == 0) else '2000'
+		fuSeBMC_max_fuzz_length = '' if (isConcurrency == False and len(stdCFuncsLst) == 0) else '-L 5000'
+		
 		runWithoutTimeoutEnabled(' '.join([
 									AFL_HOME_PATH + '/afl-fuzz',
 									#'-n',
-									'-Z','-A','1','-l',str(afl_min_length), '-D' , fuSeBMC_run_id,
+									'-Z','-A','1','-l',str(afl_min_length),fuSeBMC_max_fuzz_length, '-D' , fuSeBMC_run_id,
 									'-E',str(FuSeBMCFuzzerLib_ERRORCALL_SEED_EXPAND_MAX_SIZE),
 									fusebmcStageParam,
 									'-U',str(FuSeBMCFuzzerLib_ERRORCALL_FUSEBMC_SF_STAGE_ITERATION),
 									'-i', seed_dir,'-o' ,'./FuSeBMCFuzzerOutput2/',
-									'-m', FuSeBMCFuzzerLib_ERRORCALL_FUZZED_APP_MEM_LIMIT,
-									'-t',FuSeBMCFuzzerLib_ERRORCALL_FUZZED_APP_TIMEOUT,
+									'-m', fuzzed_app_memlimit,
+									'-t',fuzzed_app_timeout,
 									'--', afl_fuzzer_bin]),WRAPPER_Output_Dir)
 		if os.path.isfile(fuSeBMC_Fuzzer_testcase):
 			print('   ','Testcase is generated.','\n')
@@ -1385,6 +1430,18 @@ def parseRootXML_InfinteWhileNum(p_rootXML):
 			infinteWhileNum = int(elemInfinteWhileNum.text)
 	except Exception as ex: HandleException(ex)
 	return infinteWhileNum
+
+def parseRootXML_Concurrency(p_rootXML):
+	if p_rootXML is None : return False
+	try:
+		elemConcurrency= p_rootXML.find('concurrency')
+		if elemConcurrency is not None and elemConcurrency.text is not None:
+			lConcurrency = elemConcurrency.text
+			if lConcurrency == '1':
+				return True
+		return False
+	except Exception as ex: HandleException(ex)
+	return False
 
 def parseRootXML_NonDetCalls(p_rootXML):
 	if p_rootXML is None : return None
@@ -1500,6 +1557,54 @@ def getGlobalDepthOfGoalInfo(p_goalInfo):
 	return p_goalInfo.depth
 	#mainFuncID
 	
+def sortLstGoalsToWorkOn(p_lst):
+	for ginfo in p_lst:
+		ginfo.correspondingDepth =  ginfo.globalDepth if FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH else ginfo.depth
+	start = 0
+	stop = len(p_lst)-1
+	isSwap = True
+	if goalSorting == GoalSorting.DEPTH_THEN_TYPE:
+		while stop > start and isSwap == True:
+			isSwap = False
+			for i in range(start, stop):
+				current = p_lst[i]
+				next_e = p_lst[i+1]
+				if ((current.correspondingDepth < next_e.correspondingDepth) or \
+					((current.correspondingDepth == next_e.correspondingDepth) and (current.goalType > next_e.goalType))):
+						p_lst[i] = next_e; p_lst[i+1] = current; isSwap = True
+			stop = stop - 1
+			if stop == start or isSwap == False: break
+		
+			isSwap = False
+			for i in range(stop, start, -1):
+				current = p_lst[i-1]
+				next_e = p_lst[i]
+				if ((current.correspondingDepth < next_e.correspondingDepth) or \
+					((current.correspondingDepth == next_e.correspondingDepth) and (current.goalType > next_e.goalType))):
+						p_lst[i-1] = next_e; p_lst[i] = current; isSwap = True
+			start = start + 1
+	elif goalSorting == GoalSorting.TYPE_THEN_DEPTH:
+		while stop > start and isSwap == True:
+			isSwap = False
+			for i in range(start, stop):
+				current = p_lst[i]
+				next_e = p_lst[i+1]
+				if (current.goalType > next_e.goalType or \
+						(current.goalType == next_e.goalType and current.correspondingDepth < next_e.correspondingDepth)):
+						p_lst[i] = next_e; p_lst[i+1] = current; isSwap = True
+			stop = stop - 1
+			if stop == start or isSwap == False: break
+		
+			isSwap = False
+			for i in range(stop, start, -1):
+				current = p_lst[i-1]
+				next_e = p_lst[i]
+				if (current.goalType > next_e.goalType or \
+						(current.goalType == next_e.goalType and current.correspondingDepth < next_e.correspondingDepth)):
+						p_lst[i-1] = next_e; p_lst[i] = current; isSwap = True
+			start = start + 1
+	return p_lst
+
 def getLstGoalsToWorkOn(p_rootXML):
 	if p_rootXML is None : return None
 	ifGoalsLst, compoundGoalsLst, loopGoalsLst, elseGoalsLst, \
@@ -1509,31 +1614,68 @@ def getLstGoalsToWorkOn(p_rootXML):
 	l_lstGoalsToWorkOn = None
 	goalDepthDict = dict()
 	goalFuncDict = dict()
+	#FusEBMC_CONST:
+	goals_to_take = goals_count if goals_count < 5000 else 5000
+	
+	current_goals_count = 0
 	try:
 		#elemGoalsCount = rootXML.find('goalsCount')
 		#if elemGoalsCount is not None and elemGoalsCount.text: goalsCC = int(elemGoalsCount.text)
 		elemIf = p_rootXML.find('if')
 		if elemIf is not None and elemIf.text: ifGoalsLst = [int(x) for x in elemIf.text.split(',') if x]
-		elemLoop = p_rootXML.find('loop')
-		if elemLoop is not None and elemLoop.text: loopGoalsLst = [int(x) for x in elemLoop.text.split(',') if x]
-		elemAfterLoop = p_rootXML.find('afterLoop')
-		if elemAfterLoop is not None and elemAfterLoop.text: afterLoopGoalsLst = [int(x) for x in elemAfterLoop.text.split(',') if x]
-		elemElse= p_rootXML.find('else')
-		if elemElse is not None and elemElse.text: elseGoalsLst = [int(x) for x in elemElse.text.split(',') if x]
-		elemEmptyElse= p_rootXML.find('emptyElse')
-		if elemEmptyElse is not None and elemEmptyElse.text: emptyElseGoalsLst = [int(x) for x in elemEmptyElse.text.split(',') if x]
-		elemCompound= p_rootXML.find('compound')
-		if elemCompound is not None and elemCompound.text: compoundGoalsLst = [int(x) for x in elemCompound.text.split(',') if x]
-		elemEndOfFunc= p_rootXML.find('endOfFunc')
-		if elemEndOfFunc is not None and elemEndOfFunc.text: endOfFuncGoalsLst = [int(x) for x in elemEndOfFunc.text.split(',') if x]
-		elemFor= p_rootXML.find('For')
-		if elemFor is not None and elemFor.text: forGoalsLst = [int(x) for x in elemFor.text.split(',') if x]
-		elemCXXForRange= p_rootXML.find('CXXForRange')
-		if elemCXXForRange is not None and elemCXXForRange.text: cXXForRangeGoalsLst = [int(x) for x in elemCXXForRange.text.split(',') if x]
-		elemDoWhile= p_rootXML.find('DoWhile')
-		if elemDoWhile is not None and elemDoWhile.text: doWhileGoalsLst = [int(x) for x in elemDoWhile.text.split(',') if x]
-		elemWhile= p_rootXML.find('While')
-		if elemWhile is not None and elemWhile.text: whileGoalsLst = [int(a) for a in elemWhile.text.split(',') if a]
+		current_goals_count += len(ifGoalsLst)
+		
+		if current_goals_count < goals_to_take:
+			elemElse= p_rootXML.find('else')
+			if elemElse is not None and elemElse.text: elseGoalsLst = [int(x) for x in elemElse.text.split(',') if x]
+			current_goals_count += len(elseGoalsLst)
+		
+		if current_goals_count < goals_to_take:
+			elemWhile= p_rootXML.find('While')
+			if elemWhile is not None and elemWhile.text: whileGoalsLst = [int(a) for a in elemWhile.text.split(',') if a]
+			current_goals_count += len(whileGoalsLst)
+		
+		if current_goals_count < goals_to_take:
+			elemDoWhile= p_rootXML.find('DoWhile')
+			if elemDoWhile is not None and elemDoWhile.text: doWhileGoalsLst = [int(x) for x in elemDoWhile.text.split(',') if x]
+			current_goals_count += len(doWhileGoalsLst)
+		
+		if current_goals_count < goals_to_take:
+			elemFor= p_rootXML.find('For')
+			if elemFor is not None and elemFor.text: forGoalsLst = [int(x) for x in elemFor.text.split(',') if x]
+			current_goals_count += len(forGoalsLst)
+		
+		if current_goals_count < goals_to_take:
+			elemLoop = p_rootXML.find('loop')
+			if elemLoop is not None and elemLoop.text: loopGoalsLst = [int(x) for x in elemLoop.text.split(',') if x]
+			current_goals_count += len(loopGoalsLst)
+		
+		if current_goals_count < goals_to_take:
+			elemCompound= p_rootXML.find('compound')
+			if elemCompound is not None and elemCompound.text: compoundGoalsLst = [int(x) for x in elemCompound.text.split(',') if x]
+			current_goals_count += len(compoundGoalsLst)
+		
+		if current_goals_count < goals_to_take:
+			elemAfterLoop = p_rootXML.find('afterLoop')
+			if elemAfterLoop is not None and elemAfterLoop.text: afterLoopGoalsLst = [int(x) for x in elemAfterLoop.text.split(',') if x]
+			current_goals_count += len(afterLoopGoalsLst)
+		
+		if current_goals_count < goals_to_take:
+			elemEmptyElse= p_rootXML.find('emptyElse')
+			if elemEmptyElse is not None and elemEmptyElse.text: emptyElseGoalsLst = [int(x) for x in elemEmptyElse.text.split(',') if x]
+			current_goals_count += len(emptyElseGoalsLst)
+		
+		
+		if current_goals_count < goals_to_take:
+			elemEndOfFunc= p_rootXML.find('endOfFunc')
+			if elemEndOfFunc is not None and elemEndOfFunc.text: endOfFuncGoalsLst = [int(x) for x in elemEndOfFunc.text.split(',') if x]
+			current_goals_count += len(endOfFuncGoalsLst)
+		
+		if current_goals_count < goals_to_take:
+			elemCXXForRange= p_rootXML.find('CXXForRange')
+			if elemCXXForRange is not None and elemCXXForRange.text: cXXForRangeGoalsLst = [int(x) for x in elemCXXForRange.text.split(',') if x]
+			cXXForRangeGoalsLst += len(endOfFuncGoalsLst)
+		
 		
 		elemGoalInfos= p_rootXML.find('goalInfos')
 		if elemGoalInfos is not None and elemGoalInfos.text != 'ERROR':
@@ -1568,16 +1710,8 @@ def getLstGoalsToWorkOn(p_rootXML):
 				l_lstGoalsToWorkOn[i].globalDepth = getGlobalDepthOfGoalInfo(l_lstGoalsToWorkOn[i])
 				
 		# BubbleSort
+		l_lstGoalsToWorkOn = sortLstGoalsToWorkOn(l_lstGoalsToWorkOn)
 		if goalSorting == GoalSorting.DEPTH_THEN_TYPE:
-			for i in range(0, lst_len):
-				for j in range(0, lst_len-i-1):
-					depthOfCurrent = l_lstGoalsToWorkOn[j].globalDepth if FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH else l_lstGoalsToWorkOn[j].depth
-					depthOfNext = l_lstGoalsToWorkOn[j+1].globalDepth if FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH else l_lstGoalsToWorkOn[j+1].depth
-					if ((depthOfCurrent < depthOfNext) or \
-						((depthOfCurrent == depthOfNext) and (l_lstGoalsToWorkOn[j].goalType > l_lstGoalsToWorkOn[j + 1].goalType))):
-							temp = l_lstGoalsToWorkOn[j]
-							l_lstGoalsToWorkOn[j]= l_lstGoalsToWorkOn[j + 1]
-							l_lstGoalsToWorkOn[j + 1]= temp
 			# Applay IF at First & EmptyElse at End
 			if goalSorting_IF_first or goalSorting_EMPTYELSE_last:
 				tmp_if_lst, tmp_emptyElse_lst, tmp_afterLoop_lst,tmp_endOfFun_lst, rest_lst = [], [], [] , [], []
@@ -1590,15 +1724,8 @@ def getLstGoalsToWorkOn(p_rootXML):
 				l_lstGoalsToWorkOn = tmp_if_lst + rest_lst + tmp_afterLoop_lst + tmp_emptyElse_lst + tmp_endOfFun_lst
 				#del tmp_if_lst, tmp_emptyElse_lst, tmp_afterLoop_lst, rest_lst
 		else: #GoalSorting.TYPE_THEN_DEPTH:
-			for i in range(0, lst_len):
-				for j in range(0, lst_len-i-1):
-					depthOfCurrent = l_lstGoalsToWorkOn[j].globalDepth if FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH else l_lstGoalsToWorkOn[j].depth
-					depthOfNext = l_lstGoalsToWorkOn[j+1].globalDepth if FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH else l_lstGoalsToWorkOn[j+1].depth
-					if (l_lstGoalsToWorkOn[j].goalType > l_lstGoalsToWorkOn[j + 1].goalType or \
-						(l_lstGoalsToWorkOn[j].goalType == l_lstGoalsToWorkOn[j + 1].goalType and depthOfCurrent < depthOfNext)):
-							temp = l_lstGoalsToWorkOn[j]
-							l_lstGoalsToWorkOn[j]= l_lstGoalsToWorkOn[j + 1]
-							l_lstGoalsToWorkOn[j + 1]= temp
+			#sortLstGoalsToWorkOn()
+			pass
 
 		#if IS_DEBUG : assert (len(l_lstGoalsToWorkOn) == goals_count)
 		if SHOW_ME_OUTPUT:
@@ -1796,7 +1923,7 @@ def verify(strat, prop, fp_mode):
 	global goals_count
 	global lineNumberForNonDetCallsLst
 	global witness_file_name
-	global infinteWhileNum
+	global infinteWhileNum, isConcurrency
 	global selectiveInputsLst, isSelectiveInputsFromMain
 	global stdCFuncsLst
 	
@@ -1840,7 +1967,7 @@ def verify(strat, prop, fp_mode):
 								paramExportGoalInfo,'--add-comment-in-func','fuSeBMC_init=main',
 								paramAddLabelAfterLoop, paramAddGoalAtEndOfFunc, addFuSeBMCFuncParam, paramGlobalDepth,
 								'--info-file', infoFile,
-								paramHandleInfiniteWhileLoop, paramSelectiveInputs,'--export-stdc-func',
+								paramHandleInfiniteWhileLoop, paramSelectiveInputs,'--export-stdc-func','--check-concurrency',
 								'--compiler-args','-I'+os.path.dirname(benchmark)]))
 			
 			#Without else + without label-after-loop but with goal at end of function
@@ -1887,8 +2014,12 @@ def verify(strat, prop, fp_mode):
 					print('stdCFuncsLst',stdCFuncsLst)
 				if (goalSorting == GoalSorting.DEPTH_THEN_TYPE or goalSorting == GoalSorting.TYPE_THEN_DEPTH):
 					lstGoalsToWorkOn = getLstGoalsToWorkOn(rootXML)
+					
 				infinteWhileNum = parseRootXML_InfinteWhileNum(rootXML)
-				if(infinteWhileNum != 0): print('Infinte While Loops =',infinteWhileNum)
+				#if(infinteWhileNum != 0): print('Infinte While Loops =',infinteWhileNum)
+				
+				isConcurrency = parseRootXML_Concurrency(rootXML)
+				#print('isConcurrency', isConcurrency)
 				
 				del rootXML
 
@@ -1991,9 +2122,10 @@ def verify(strat, prop, fp_mode):
 				goal='GOAL_'+str(goal_id)
 				isFromMap2Check = False
 				IsTimeOut(True)
+				#FusEBMC_CONST: remaining_time_s < time_out_s / 2 ; if half of time then run Fuzzer.
 				if FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED and not FuSeBMCFuzzerLib_CoverBranches_Done \
 					and (len(lstFuzzerSeeds) >= FuSeBMCFuzzerLib_COVERBRANCHES_NUM_OF_GENERATED_TESTCASES_TO_RUN_AFL \
-					or remaining_time_s < time_out_s / 3):
+					or remaining_time_s < time_out_s / 2):
 					lstFuSeBMC_FuzzerGoals = RunAFLForCoverBranches(instrumentedAFL_src)
 					'''
 					#### BEGIN CHECK ####
@@ -2200,7 +2332,7 @@ def verify(strat, prop, fp_mode):
 		#hasInputInTestcase=False # for test
 		if MUST_GENERATE_RANDOM_TESTCASE: #and not hasInputInTestcase:
 			singleValueFromFuSeBMCFuzzer, maxLengthOfTestcaseFromFuSeBMCFuzzer = getSingleValueFromFuSeBMCFuzzer(prop)
-			singleValueFromFuSeBMCFuzzer *= 4
+			singleValueFromFuSeBMCFuzzer //= 100
 			
 			random_testcase_file=os.path.join(TestSuite_Dir,'Testcase_'+str(extra_test_case_id)+'_Fu.xml')
 			extra_test_case_id += 1
@@ -2331,7 +2463,7 @@ def verify(strat, prop, fp_mode):
 			runWithTimeoutEnabled(' '.join([FUSEBMC_INSTRUMENT_EXE_PATH, '--input',benchmark ,'--output', INSTRUMENT_Output_File , 
 									paramHandleInfiniteWhileLoop, paramInfinteWhileLoopLimit, paramSelectiveInputs,
 									'--add-label-in-func',myLabel + '=reach_error,fuSeBMC_init=main','--info-file', infoFile,
-									'--export-line-number-for-NonDetCalls','--export-stdc-func',
+									'--export-line-number-for-NonDetCalls','--export-stdc-func','--check-concurrency',
 									'--compiler-args', '-I'+os.path.dirname(benchmark)]))
 			IsTimeOut(True)
 			lineNumberForNonDetCallsLst = None
@@ -2340,7 +2472,9 @@ def verify(strat, prop, fp_mode):
 					rootXML = ET.parse(infoFile).getroot()
 					lineNumberForNonDetCallsLst = parseRootXML_NonDetCalls(rootXML)
 					infinteWhileNum = parseRootXML_InfinteWhileNum(rootXML)
-					if(infinteWhileNum != 0): print('Infinte While Loops =',infinteWhileNum)
+					isConcurrency = parseRootXML_Concurrency(rootXML)
+					#print('isConcurrency', isConcurrency)
+					#if(infinteWhileNum != 0): print('Infinte While Loops =',infinteWhileNum)
 					if FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_ENABLED:
 						selectiveInputsLst, isSelectiveInputsFromMain = parseRootXML_SelectiveInputs(rootXML)
 						if selectiveInputsLst is not None and len(selectiveInputsLst) > 0:
@@ -2448,6 +2582,7 @@ def verify(strat, prop, fp_mode):
 				except Exception as ex :HandleException(ex)
 			
 			try:
+				IsTimeOut(False)
 				runNumber = 2
 				goal += 1
 				print('STARTING GOAL '+str(goal)+' ... \n');sys.stdout.flush()
@@ -2458,7 +2593,7 @@ def verify(strat, prop, fp_mode):
 				esbmc_command_line = get_command_line(strat, prop, arch, toWorkSourceFile, fp_mode)
 				esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(benchmark)+ ' '
 				if isInstrumentOK : esbmc_command_line += ' --error-label ' + myLabel + ' '
-				esbmc_command_line += ' --timeout ' + str(int(time_out_s - 1))+'s '
+				esbmc_command_line += ' --timeout ' + str(int(remaining_time_s - 1))+'s '
 				esbmc_command_line += ' --memlimit ' + str(MEM_LIMIT_ERROR_CALL_ESBMC) + 'g '
 				output = run(esbmc_command_line)
 				IsTimeOut(True)
@@ -2494,7 +2629,7 @@ def verify(strat, prop, fp_mode):
 		
 		if MUST_GENERATE_RANDOM_TESTCASE:
 			singleValueFromFuSeBMCFuzzer, maxLengthOfTestcaseFromFuSeBMCFuzzer = getSingleValueFromFuSeBMCFuzzer(prop)
-			singleValueFromFuSeBMCFuzzer *= 4
+			singleValueFromFuSeBMCFuzzer //= 100
 			
 			randomLsts = []
 			lst1 = None
