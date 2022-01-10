@@ -1,4 +1,0 @@
-make clean all
-this will generate:
-LIB32 = libFuSeBMC_FuzzerLib_32.a
-LIB64 = libFuSeBMC_FuzzerLib_64.a
