@@ -1,1 +1,0 @@
-This folder will have 2 folders + test-suite.zip (my_instrument_output + test-suite)
