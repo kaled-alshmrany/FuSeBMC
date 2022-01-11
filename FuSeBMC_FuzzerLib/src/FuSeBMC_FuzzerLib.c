@@ -106,12 +106,6 @@ int fuSeBMC_env_goals_cnt = 0;
 
 FUSEBMC_goal_t last_goal= 0;
 
-//extern FuSeBMC_input_node_t * fuSeBMC_input_arr;
-//extern int fuSeBMC_input_arr_count;
-
-/*Helper to print values in file.
- * USAGE: fuSeBMC_print_val_in_file("file1.txt","%s%d", "Hello" , 10);
- */
 void fuSeBMC_print_val_in_file (char * file_name , char * format, ...)
 {
 	FILE * fPtr = fopen(file_name, "a");
@@ -192,15 +186,6 @@ void fuSeBMC_setup_shm(void)
 			else 
 				fuSeBMC_env_goals_cnt = goals;
 
-			//fuSeBMC_log_info("fuSeBMC_env_goals_cnt=%d",fuSeBMC_env_goals_cnt);
-			//free(goals_count_ptr);
-			//free(env_goals_count);
-			//fuSeBMC_log_info("fuSeBMC_env_goals_cnt=%d",fuSeBMC_env_goals_cnt);
-			//int bytesNum = goals / (CHAR_BIT * sizeof(char));
-			//int rest = goals % (CHAR_BIT * sizeof(char));
-			//if(rest>0) bytesNum += 1;
-			//fuSeBMC_bitset_sz_byte = bytesNum;
-			//fuSeBMC_shm_id = shmget(some_key, (fuSeBMC_bitset_sz_byte + 1) * sizeof(char), 0666);
 			fuSeBMC_shm_id = shmget(some_key, (fuSeBMC_env_goals_cnt+1) * sizeof(char), 0666);
 			if (fuSeBMC_shm_id < 0)
 			{
@@ -250,11 +235,6 @@ void fuSeBMC_init_mutex()
 	if(fuSeBMC_lock == NULL)
 	{
 		fuSeBMC_lock = malloc(sizeof(pthread_mutex_t));
-		//pthread_mutexattr_t att;
-		//pthread_mutexattr_init(&att);
-		//pthread_mutexattr_setrobust(&att);
-		//pthread_mutexattr_setpshared(&att, PTHREAD_PROCESS_SHARED);
-		//pthread_mutexattr_setpshared(&att, PTHREAD_PROCESS_PRIVATE);
 
 		if (pthread_mutex_init(fuSeBMC_lock, NULL) != 0)
 		{
@@ -264,35 +244,11 @@ void fuSeBMC_init_mutex()
 		}
 		else
 		{
-			//fuSeBMC_log_info("fuSeBMC_init_mutex Done\n");
-			//struct rlimit r;
-			//if (mem_limit)
-			//{
-			//	r.rlim_max = r.rlim_cur = (rlim_t)(mem_limit << 20);// 1024 * 1024
-//#ifdef RLIMIT_AS
-//				setrlimit(RLIMIT_AS, &r);
-//#else
-//				setrlimit(RLIMIT_DATA, &r);
-//#endif
-			//}
-			//r.rlim_max = r.rlim_cur = 0; // core dump
-			//setrlimit(RLIMIT_CORE, &r);
 			pthread_mutex_lock(fuSeBMC_lock);
 			fuSeBMC_setup_shm();
 			if(fuSeBMC_IsStdInCopied == 0) fuSeBMC_copy_stdin();
 			pthread_mutex_unlock(fuSeBMC_lock);
 		}
-		// Error-call
-		//if(fuSeBMC_category == 1 )
-		//{
-		//	
-		//}
-		//else
-		// cover-branches
-		//if(fuSeBMC_category == 2 )
-		//{
-			
-		//}
 	}
 }
 
@@ -396,23 +352,9 @@ void fuSeBMC_reach_error()
 		}
 		//if(fuSeBMC_lock == NULL) fuSeBMC_init_mutex();
 		if(fuSeBMC_lock != NULL){ pthread_mutex_lock(fuSeBMC_lock);}
-		//fuSeBMC_print_val_in_file("./fuSeBMC_reach_error.txt","%s\n","AFTER LOCK");
-		
-		/*FILE *fp = fopen("./fusebmc_error_seed.bin","wb");
-		if(fp != NULL)
-		{
-			fwrite(fuSeBMC_stdin,fuSeBMC_stdin_len,1,fp);
-			fclose(fp);
-		}*/
-
-	
 		
 		fuSeBMC_run_TC_gen();
 		if(fuSeBMC_lock != NULL) {pthread_mutex_unlock(fuSeBMC_lock);}
-		//fuSeBMC_print_val_in_file("./fuSeBMC_reach_error.txt","%s\n","AFTER UNLOCK");
-		// Kill the Parent Fuzzer.
-		//kill(getppid(), SIGINT);
-		//kill(getppid(), SIGTERM);
 	}
 }
 
@@ -651,71 +593,16 @@ void fuseGoalCalled(FUSEBMC_goal_t  goal)
 	if(fuSeBMC_lock == NULL) fuSeBMC_init_mutex();
 	pthread_mutex_lock(fuSeBMC_lock);
 	last_goal = goal;
-	//fuSeBMC_print_val_in_file(fuSeBMC_goal_covered_by_this_testcase_file,"#pid=%d\n",getpid());
 	
-	//fuSeBMC_print_val_in_file(fuSeBMC_goal_covered_by_this_testcase_file,"%lu\n",goal);
-	/*if(inputIndex > 20)
-	{
-		__assert_fail ("0", "32_1_cilled_ok_nondet_linux-3.4-32_1-drivers--media--dvb--frontends--dvb_dummy_fe.ko-ldv_main0_sequence_infinite_withcheck_stateful.cil.out.c", 3, __extension__ __PRETTY_FUNCTION__); 
-		kill(getppid(), SIGINT);
-	}*/
-	//FuSeBMC_goal_node_t * search_node = fuSeBMC_find_in_goal_list(fuSeBMC_goal_list_head,goal);
-	//if(search_node == NULL)
-	
-	//int bytePos = goal / (sizeof(char) * CHAR_BIT);
-	//int bitPos = goal %  (sizeof(char) * CHAR_BIT);
-	
-	//char * tmpPtr = fuSeBMC_bitset_arr + bytePos;
-	//OK
-	//unsigned char bit = (((unsigned char)fuSeBMC_bitset_arr[bytePos]) >> bitPos) & (unsigned char)1;
-	//unsigned char bit = ((unsigned char)fuSeBMC_bitset_arr[bytePos]) & ((unsigned char)(UINT8_C(1)<< bitPos));
-	
-	//if(fuSeBMC_findGoal(goal) < 0)
-	//if((fuSeBMC_IsNewGoalsAdded ==1 && bucket_idx != -1) || bit == UINT8_C(0))
-	//if((fuSeBMC_IsNewGoalsAdded ==1 && bucket_idx != -1) || fuSeBMC_bitset_arr[goal] == 0)
 	if(fuSeBMC_bitset_arr[goal] == 0)
 	//if(bit == UINT8_C(0))
 	{
-		//fuSeBMC_push_in_goal_list(&fuSeBMC_goal_list_head , goal, '1'); // '1': new goal
-		//fuSeBMC_addGoal(goal);
-		
-		//OK
-		//fuSeBMC_bitset_arr[bytePos] |= ((unsigned char)(UINT8_C(1) << bitPos));
-		
-		// NEW CODE : BEGIN
-		//int inputs_count = fuSeBMC_count_input_list(fuSeBMC_input_list_head);
-		//fuSeBMC_print_val_in_file ("./count.txt","%d\n", inputs_count);
-		//fuSeBMC_log_info("goal="FUSEBMC_goal_format"\n",goal);
-		
-		/*fuSeBMC_Write_InputList_in_Testcase(fuSeBMC_test_case_file);
-		*/
 		// cover-branches
 		if(fuSeBMC_category == 2)
 		{
-			//fuSeBMC_Write_InputList_in_Testcase_CoverBranches();
-			//fuSeBMC_clear_input_list();
-			//fuSeBMC_bitset_arr[goal] = 1;
-			//fuSeBMC_IsNewGoalsAdded = 1;
 			fuSeBMC_run_TC_gen();
 			exit(0);
-			//if(fuSeBMC_input_list_head != NULL)fuSeBMC_log_error("fuSeBMC_input_list_head is not null");
 		}
-		/*FILE* fPtr = fopen("./FuSeBMC_Fuzzer_goals_covered.txt", "a");
-		if(fPtr == NULL)
-		{
-			printf("Error: cannot open file:FuSeBMC_Fuzzer_goals_covered.txt!");
-			fuSeBMC_log_error("Error: cannot open file:FuSeBMC_Fuzzer_goals_covered.txt");
-		}
-		else
-		{
-			//if(fuSeBMC_IsFirstElementInTestcase == 1)fprintf(fPtr,"#%s\n",fuSeBMC_test_case_file);
-			fprintf(fPtr,"%lu\n",goal);
-			fclose(fPtr);
-		}*/
-		
-		
-		// NEW CODE : END
-
 	}
 	pthread_mutex_unlock(fuSeBMC_lock);
 }
