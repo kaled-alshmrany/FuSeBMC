@@ -5,6 +5,7 @@ class GoalInfo:
 		self.goal = goal
 		self.goalType = goalType
 		self.depth = depth
+		self.correspondingDepth = depth
 		self.globalDepth = globalDepth
 		self.funcID = funcID
 		

@@ -8,7 +8,8 @@ from .tcolors import TColors
 from.util import *
 from .nonblockingstreamreader  import NonBlockingStreamReader
 
-TESTCOV_EXE = './val_testcov/testcov/bin/testcov'
+#TESTCOV_EXE = './val_testcov/testcov/bin/testcov'
+TESTCOV_EXE ='./val_testcov_3.5/testcov/bin/testcov'
 #TESTCOV_EXE = './test-suite-validator-master/bin/testcov'
 #TESTCOV_PARAMS = ['--no-runexec','--use-gcov','-64']
 #TESTCOV_PARAMS= ['--no-runexec','--use-gcov','--cpu-cores','0', '--verbose', '--no-plots','--reduction','BY_ORDER','--reduction-output','test-suite']
