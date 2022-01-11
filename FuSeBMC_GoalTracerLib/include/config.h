@@ -13,7 +13,7 @@ extern "C" {
 typedef int  FUSEBMC_goal_t;
 #define FUSEBMC_goal_format "%d"
 
-#define FUSEBMC_USE_THREAD_LOCK 0
+#define FUSEBMC_USE_THREAD_LOCK 1
 #if FUSEBMC_USE_THREAD_LOCK
 	
 #else
