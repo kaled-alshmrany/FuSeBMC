@@ -1,4 +1,6 @@
 #include <StdCFuncHandler.h>
+
+
 std::vector<std::string> StdCFuncHandler::vctStdCFuncToSearchFor = 
 {
 "printf","vfprintf","malloc","free","sprintf","strchr","strcpy","strcat","sscanf",
@@ -6,7 +8,8 @@ std::vector<std::string> StdCFuncHandler::vctStdCFuncToSearchFor =
 "feof","srand","rand","memset","memcpy","snprintf","ftok","getenv","setenv","atoi",
 "atol","shmget","shmat","getpid","getppid","strlen","sigemptyset","sigaction",
 "setitimer","pipe","getrlimit","setrlimit","dup2","execv","close","wait","read",
-"write","open","fopen","fclose","fseek","fread","exit","kill","fork"
+"write","open","fopen","fclose","fseek","fread","exit","kill","fork","fileno","fseeko","sleep","fstat",
+"stat","lstat","getopt","getopt_long", "vasprintf","strsep","getutent","_IO_getc"
 };
 
 StdCFuncHandler::StdCFuncHandler()

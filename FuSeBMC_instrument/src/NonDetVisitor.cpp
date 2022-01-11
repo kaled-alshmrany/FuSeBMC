@@ -49,6 +49,7 @@ extern FuncDeclList * funcDeclList;
 extern FuncCallList * funcCallList;
 extern SelectiveInputsHandler * selectiveInputsHandler;
 extern StdCFuncHandler * stdCFuncHandler;
+extern bool isConcurrency;
 
 GoalCounter& goalCounterNonDet = GoalCounter::getInstance();
 
@@ -91,15 +92,17 @@ bool NonDetVisitor::VisitDecl(Decl *decl)
 	
 	if(decl->isFunctionOrFunctionTemplate() && decl->hasBody())
 	{
-		if(myOptions->exportGoalInfo)
+		std::string funcNameAsString = decl->getAsFunction()->getNameAsString();
+		
+		if(myOptions->exportGoalInfo || myOptions->exportCallGraph || myOptions->checkConcurrency)
 		{
 			Stmt * stmtBody = decl->getBody();
-			searchForGoals(stmtBody,0);
+			scanFuncsReursive(stmtBody,0);
 		}
 		if(myOptions->exportSelectiveInputs)
 		{
 			Stmt * stmtBody = decl->getBody();
-			if(decl->getAsFunction()->getNameAsString() == "main")
+			if(funcNameAsString == "main")
 				selectiveInputsHandler->mainBodyStmt = stmtBody;
 			else
 			{
@@ -111,12 +114,12 @@ bool NonDetVisitor::VisitDecl(Decl *decl)
 	return true;
 }
 
-void NonDetVisitor::searchForGoals(Stmt *s, int depth)
+void NonDetVisitor::scanFuncsReursive(Stmt *s, int depth)
 {
 	if(!s || s == nullptr) return;
 	if(isa<NullStmt>(s)) return;
 	//s->dumpColor();
-	if(isa<LabelStmt>(s))
+	if(myOptions->exportGoalInfo && isa<LabelStmt>(s))
 	{
 		LabelStmt * labelStmt = cast<LabelStmt>(s);
 		const char * lblName = labelStmt->getName();
@@ -161,45 +164,57 @@ void NonDetVisitor::searchForGoals(Stmt *s, int depth)
 		}
 		
 	}
-	else 
-		if(myOptions->exportCallGraph && isa<CallExpr>(s))
+	else
+	{
+		if(isa<CallExpr>(s))
 		{
-			//std::cout << "IT IS CallExpr !!" << std::endl;
 			CallExpr * call = cast<CallExpr>(s);
-			if(call)
+			std::string funcNameAsString = getFuncNameFromCallExpr(call);
+			if(myOptions->exportCallGraph)
 			{
-				FunctionDecl * func_decl = call->getDirectCallee(); 
-				if(func_decl)
+				//std::cout << "IT IS CallExpr !!" << std::endl;
+				unsigned long int calleeID = funcDeclList->getFuncDeclID(funcNameAsString);
+				if(calleeID > 0)
 				{
-					IdentifierInfo * identifierInfo = func_decl->getIdentifier();
-					if(identifierInfo)
-					{
-						llvm::StringRef funcName = identifierInfo->getName();
-						string funcNameStr = funcName.str();
-						// IF
-						unsigned long int calleeID = funcDeclList->getFuncDeclID(funcNameStr);
-						if(calleeID > 0)
-						{
-							funcCallList->addFuncCallInfo(this->current_funcID,calleeID,depth);
-						}
-					}
+					funcCallList->addFuncCallInfo(this->current_funcID,calleeID,depth);
 				}
+				//unsigned StartLine = SM.getSpellingLineNumber(call->getLocStart());
+				//std::cout << "StartLine=" << StartLine << std::endl;
+
 			}
-			
-			
-			//unsigned StartLine = SM.getSpellingLineNumber(call->getLocStart());
-			//std::cout << "StartLine=" << StartLine << std::endl;
-			
+			if(myOptions->checkConcurrency && isConcurrency == false)
+			{
+				if(funcNameAsString == "pthread_create" || funcNameAsString == "pthread_join" 
+						||funcNameAsString == "pthread_exit")
+					isConcurrency = true;
+			}
 		}
+	}
 	for (Stmt::child_iterator i = s->child_begin(), e = s->child_end(); i != e; ++i)
 	{
 		Stmt * child = *i;
 		if(!child) continue;
 		if(isa<NullStmt>(child)) continue;
-		searchForGoals(child, depth+1);
+		scanFuncsReursive(child, depth+1);
 	}
 }
 
+string NonDetVisitor::getFuncNameFromCallExpr(CallExpr * call)
+{
+	if(!call || call == nullptr) return "";
+	FunctionDecl * func_decl = call->getDirectCallee(); 
+	if(func_decl)
+	{
+		IdentifierInfo * identifierInfo = func_decl->getIdentifier();
+		if(identifierInfo)
+		{
+			llvm::StringRef funcName = identifierInfo->getName();
+			string funcNameStr = funcName.str();
+			return funcNameStr;
+		}
+	}
+	return "";
+}
 bool NonDetVisitor::VisitStmt(Stmt *s)
 {
 	if(!s) return true;

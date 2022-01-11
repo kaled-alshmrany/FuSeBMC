@@ -8,7 +8,7 @@ project (FuSeBMC_instrument)
 message("Welcome to ${PROJECT_NAME}....")
 
 # Used by try_compile
-set (CMAKE_POSITION_INDEPENDENT_CODE ON)kaled
+set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 set (DEFAULT_BUILD_TYPE "Release")
 set (CMAKE_CXX_STANDARD 14)
 set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -g -o0 -DMYDEBUG")

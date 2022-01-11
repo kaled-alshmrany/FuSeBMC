@@ -53,12 +53,12 @@ public:
 	unsigned long int current_funcID=0;
 	
 	NonDetVisitor(Rewriter &R, MyHolder& H);
-	
+	string getFuncNameFromCallExpr(CallExpr * call);
 	bool TraverseDecl(Decl* decl);
 	//void HandleReturnStmt(Stmt * s);
 	bool VisitDecl(Decl * decl);
 	bool VisitStmt(Stmt *s);
-	void searchForGoals(Stmt *s, int depth);
+	void scanFuncsReursive(Stmt *s, int depth);
 	//bool searchForSelectiveInputs(Stmt *s);
 	//string getFuncNameFromCallExpr(CallExpr * call);
 	

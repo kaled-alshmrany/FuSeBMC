@@ -33,6 +33,7 @@ public:
 	bool addCommentInFunc     = false;
 	bool exportSelectiveInputs= false;
 	bool exportStdCFunc= false;
+	bool checkConcurrency = false;
 	
 
 	// func1 , lbl1

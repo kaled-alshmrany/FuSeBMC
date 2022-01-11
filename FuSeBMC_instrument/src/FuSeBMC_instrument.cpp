@@ -74,6 +74,7 @@ unsigned mainFileID = 0;
 extern int infinteWhileNum;
 SelectiveInputsHandler * selectiveInputsHandler = nullptr;
 extern StdCFuncHandler * stdCFuncHandler;
+bool isConcurrency = false;
 #ifdef MYDEBUG
 	int V_counter =0 ;
 #endif
@@ -109,6 +110,7 @@ void usage(char * prog)
 			  << "\t\t\t\t with (forint i=0;i<limit;i++)" << std::endl;
 	std::cout << "--export-selective-inputs export selective inputs in info.xml file." << std::endl;
 	std::cout << "--export-stdc-func export redifined stdc functions in info.xml file." << std::endl;
+	std::cout << "--check-concurrency export if source uses pthread's functions in info.xml file." << std::endl;
 	std::cout << "--compiler-args\t\tThe next arguments will be passed to the compiler."<<std::endl;
 	std::cout << "Example 1:" << prog << " --input mysource.c --output myout.c --goal-output-file theGoals.txt "<<std::endl;
 	std::cout << "Example 2:" << prog << " --input mysource.c --output myout.c --goal-pro-func-output-dir /home/myout "<<std::endl;
@@ -390,6 +392,10 @@ int main(int argc, char **argv)
 		{
 			myOptions->exportStdCFunc = true;
 		}
+		else if(strcmp(the_arg,"--check-concurrency")==0)
+		{
+			myOptions->checkConcurrency = true;
+		}
 		else
 		{
 			std::cerr << "unknown option:" << the_arg << std::endl;
@@ -460,7 +466,7 @@ int main(int argc, char **argv)
 
 	/*argc=6;
 	char *argvv[]={"./my_instrument", "./examples/a.cpp", "./examples/uftp_out.c" , "./examples/uftp_goals.txt",
-	"./examples/goals_out", "-I/home/hosam/sdb1/uFTP/library", "-DOPENSSL_ENABLE"};
+	"./examples/goals_out", "-I/home/kaled/sdb1/uFTP/library", "-DOPENSSL_ENABLE"};
 	argv=argvv;
 	*/
 	/*std::string inputFile(argv[1]);
@@ -737,7 +743,7 @@ int main(int argc, char **argv)
 	bool isOutFileOpenOK = true;
 	if(isOutFileWritten && 
 			(myOptions->exportLineNumberForNonDetCalls || myOptions->exportGoalInfo || myOptions->exportSelectiveInputs
-			|| myOptions->exportStdCFunc)
+			|| myOptions->exportStdCFunc || myOptions->exportCallGraph || myOptions->checkConcurrency)
 			)
 	{
 		if(myOptions->exportStdCFunc)
@@ -966,6 +972,13 @@ int main(int argc, char **argv)
 					infoFile_fs << "<stdCFunc>" << funcName << "</stdCFunc>";
 				infoFile_fs << "</stdCFuncs>";
 			}
+			if(myOptions->checkConcurrency)
+			{
+				infoFile_fs << "<concurrency>" <<
+						(isConcurrency?"1":"0")
+						<< "</concurrency>";
+			}
+			
 			infoFile_fs << "</info>";
 		}
 		else
