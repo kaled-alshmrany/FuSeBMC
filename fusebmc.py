@@ -785,9 +785,7 @@ def get_command_line(strat, prop, arch, benchmark, fp_mode):
 			pass
 		else:
 			command_line += "--interval-analysis "
-		#20.05.2020 + #03.06.2020 kaled: adding the option "--unlimited-k-steps" for coverage_error_call .... --max-k-step 5
 	elif prop == Property.cover_error_call:
-	#kaled : 03.06.2020 --unwind 10 --partial-loops
 		if ERRORCALL_RUNTWICE_ENABLED and runNumber ==1:
 			command_line += "--partial-loops --no-pointer-check --no-bounds-check   --no-slice "
 		else:
@@ -2220,13 +2218,7 @@ def verify(strat, prop, fp_mode):
 								hasInputInTestcase = True
 								goals_covered_lst.append(goal_id)
 								goals_covered_by_map2check.append(goal_id)	
-						# comment or uncomment kaled ...
-						#continue: means don't execute ESBMC on goal_id
-						#if len(inst_assumptions)>0: # for example
-						#	continue
-						#if goals_count > 20: # for example
-						#	continue
-						#continue # always # you can not use it again
+
 					except MyTimeOutException as mytime_ex: raise mytime_ex
 					except KeyboardInterrupt as kb_ex: raise kb_ex;
 					except Exception as ex: print(TColors.FAIL); print(ex); print(TColors.ENDC)
@@ -2850,15 +2842,9 @@ INSTRUMENT_Output_Dir = WRAPPER_Output_Dir + '/fusebmc_instrument_output/'
 if category_property == Property.cover_branches or category_property == Property.cover_error_call:
 	important_outs_by_ESBMC = []
 	#signal.signal(signal.SIGALRM, timeOutSigHandler)
-	#signal.signal(signal.SIGTERM, timeOutSigHandler)
-	#signal.signal(signal.SIGINT, timeOutSigHandler)
 	# ESBMC default commands: this is only for Cover-error and cover-branches
 	esbmc_dargs = "--no-div-by-zero-check --force-malloc-success --state-hashing "
-	#16.05.2020 remove --unlimited-k-steps
-	#03.06.2020 kaled reduce the number of "--k-step 120"
 	esbmc_dargs += "--no-align-check --k-step 5 --floatbv "
-	#02.06.2020 adding options for Coverage-error-call
-	# kaled : 03.06.2020 you must put it in method 'get_command_line line 844'; here is general
 	#esbmc_dargs += "--no-align-check --k-step 120 --floatbv --unlimited-k-steps "
 	esbmc_dargs += "--context-bound 2 "
 	#--unwind 1000 --max-k-step 1000 
