@@ -1,0 +1,10 @@
+run script:
+./build.sh
+
+this will generate:
+LIB32 = libFuSeBMC_FuzzerLib_32.a, WITHOUT concurrency support.
+LIB64 = libFuSeBMC_FuzzerLib_64.a, WITHOUT concurrency support.
+
+and
+LIB32 = libFuSeBMC_FuzzerLib_c_32.a, WITH concurrency support.
+LIB64 = libFuSeBMC_FuzzerLib_c_64.a, WITH concurrency support.
