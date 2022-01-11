@@ -13,7 +13,7 @@
 #include <sys/time.h>
 
 #include <stdbool.h>
-#include <config.h>
+#include <tcgen_config.h>
 #include <FuSeBMC_TCGen.h>
 #include <inputList.h>
 #include <inputTypes.h>
@@ -201,8 +201,8 @@ void fuSeBMC_setup_shm(void)
 	fuSeBMC_bitset_arr = malloc((fuSeBMC_env_goals_cnt+1) * sizeof(char));
 	for(int i=0; i<=fuSeBMC_env_goals_cnt;i++)
 		fuSeBMC_bitset_arr[i] = 0;
-	fuSeBMC_input_size_ptr = malloc(sizeof(unsigned int));
-	*fuSeBMC_input_size_ptr = 0;
+	//fuSeBMC_input_size_ptr = malloc(sizeof(unsigned int));
+	//*fuSeBMC_input_size_ptr = 0;
 }
 #else
 void fuSeBMC_setup_shm(void)
@@ -304,7 +304,9 @@ void fuSeBMC_setup_shm(void)
 #endif //STAND_ALONE
 void fuSeBMC_init()
 {
+	//fuSeBMC_log_info("fuSeBMC_init() is called\n");
 	fuSeBMC_init_mutex();
+	//fuSeBMC_log_info("After fuSeBMC_init() is called\n");
 	//if(fuSeBMC_IsStdInCopied == 0) fuSeBMC_copy_stdin();
 }
 void fuSeBMC_init_mutex()
@@ -511,6 +513,7 @@ void fuSeBMC_Write_InputList_in_Testcase_ErrorCall()
 	if(access(FUSEBMC_TESTCASE_FILENAME_ERROR_CALL, F_OK) == 0)
 	{
 		// file exists
+		fuSeBMC_log_info("file %s exists", FUSEBMC_TESTCASE_FILENAME_ERROR_CALL);
 		exit(0);
 	}
 	FILE *fptr;
@@ -674,8 +677,11 @@ void fuSeBMC_Write_InputList_in_FD(FILE * fptr)
 void fuSeBMC_reach_error()
 {
 	//Reach-Error
+	//fuSeBMC_log_info("error XXX is reached");
 	if(fuSeBMC_category == 1)
 	{
+		//fuSeBMC_log_info("error is reached");
+		//if(fuSeBMC_lock == NULL) fuSeBMC_init_mutex();
 		char * fuzzer_id_ptr = alloc_printf("%s_fuzid",fuSeBMC_run_id);
 		char * fuzzer_id_str = getenv(fuzzer_id_ptr);
 		__pid_t fuzzer_id = 0;
@@ -689,9 +695,10 @@ void fuSeBMC_reach_error()
 			fuzzer_id = getppid();
 		}
 		//fuSeBMC_log_info("fuzzer_id=%ld",fuzzer_id);
-		
+		if(fuSeBMC_lock != NULL) {pthread_mutex_lock(fuSeBMC_lock);}
 		fuSeBMC_print_val_in_file("./fuSeBMC_reach_error_tcgen.txt","%s\n","fuSeBMC_reach_error_from_TCGen");
 		fuSeBMC_Write_InputList_in_Testcase_ErrorCall();
+		if(fuSeBMC_lock != NULL){ pthread_mutex_unlock(fuSeBMC_lock);}
 		if(access(FUSEBMC_TESTCASE_FILENAME_ERROR_CALL, F_OK) == 0 )
 		{
 			// file exists

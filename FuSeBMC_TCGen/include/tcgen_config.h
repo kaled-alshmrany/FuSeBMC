@@ -13,8 +13,8 @@ extern "C" {
 typedef int  FUSEBMC_goal_t;
 #define FUSEBMC_goal_format "%d"
 
-#define FUSEBMC_USE_THREAD_LOCK 0
-#if FUSEBMC_USE_THREAD_LOCK
+//#define FUSEBMC_USE_THREAD_LOCK 0
+#ifdef FUSEBMC_CONCURRENCY
 	
 #else
 	#define pthread_mutex_unlock(lock)

@@ -8,7 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <config.h>
+#include <tcgen_config.h>
 #include <inputTypes.h>
 #include <inputList.h>
 

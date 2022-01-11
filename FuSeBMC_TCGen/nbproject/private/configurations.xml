@@ -4,9 +4,9 @@
     <df root="." name="0">
       <df name="include">
         <in>FuSeBMC_TCGen.h</in>
-        <in>config.h</in>
         <in>inputList.h</in>
         <in>inputTypes.h</in>
+        <in>tcgen_config.h</in>
       </df>
       <df name="obj32">
       </df>

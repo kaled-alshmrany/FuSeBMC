@@ -1,6 +1,7 @@
-#CLANG_BASE = /home/hosam/clang_base
+#CLANG_BASE = /home/kaled/clang_base
 #LLVM_BASE = /mnt/sda2/llvm-6.0.0
 #CXX = $(CLANG_BASE)/bin/clang
+$(info concurrency="$(concurrency)")
 CXX= gcc
 #
 CXXFLAGS = -std=gnu11 -Wall -Wextra -W  -I./include
@@ -8,8 +9,15 @@ CXXFLAGS = -std=gnu11 -Wall -Wextra -W  -I./include
 CXXFLAGS += -Wno-unused-parameter
 #LDFLAGS = -L$(CLANG_BASE)/lib -L$(LLVM_BASE)/lib
 #LDLIBS = 
-LIB32 = libFuSeBMC_TCGen_32.a
-LIB64 = libFuSeBMC_TCGen_64.a
+ifeq ($(concurrency), 1)
+    CXXFLAGS += -DFUSEBMC_CONCURRENCY
+    LIB32 = libFuSeBMC_TCGen_c_32.a
+    LIB64 = libFuSeBMC_TCGen_c_64.a
+else
+    LIB32 = libFuSeBMC_TCGen_32.a
+    LIB64 = libFuSeBMC_TCGen_64.a
+endif
+
 SRC_DIR = src
 INCLUDE_DIR = include
 OBJ_DIR32 = obj32
@@ -18,7 +26,7 @@ HEADER = $(wildcard $(INCLUDE_DIR)/*.h)
 SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ32 = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR32)/%.o)
 OBJ64 = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR64)/%.o)
-OTHER_HEADERS = $(INCLUDE_DIR)/config.h
+OTHER_HEADERS = $(INCLUDE_DIR)/tcgen_config.h
 
 .PHONY: all clean debug32 release32 debug64 release64
 debug32: CXXFLAGS += -g -o0 -DMYDEBUG -m32

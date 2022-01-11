@@ -36,7 +36,7 @@
       <makefileType>
         <makeTool>
           <buildCommandWorkingDir>.</buildCommandWorkingDir>
-          <buildCommand>${MAKE} -f Makefile all</buildCommand>
+          <buildCommand>./build.sh</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
           <executablePath></executablePath>
           <cTool>
@@ -46,6 +46,7 @@
             </incDir>
             <preprocessorList>
               <Elem>ARCH64</Elem>
+              <Elem>FUSEBMC_CONCURRENCY</Elem>
             </preprocessorList>
           </cTool>
         </makeTool>

@@ -2,7 +2,7 @@
 #define FUSEBMC_FUZZER_LIB_H
 #include <stdint.h>
 #include <inputTypes.h>
-#include <config.h>
+#include <tcgen_config.h>
 
 #ifdef __cplusplus
 extern "C" {
