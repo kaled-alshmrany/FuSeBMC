@@ -2,8 +2,8 @@
 FuSeBMC is a test generator for finding security vulnerabilities in C programs. In ealair work (version 3), we described a previous version that incrementally injected labels to guide Bounded Model Checking (BMC) and Evolutionary Fuzzing engines to produce test cases for code coverage and bug finding. Today, we introduce an improved version of FuSeBMC that utilizes both engines to produce smart seeds. First, the engines run with a short time limit on a lightly instrumented version of the program to produce the seeds. The BMC engine is particularly useful in producing seeds that can pass through complex mathematical guards. Then, FuSeBMC runs its engines with extended time limits using the smart seeds created in the previous round. FuSeBMC manages this process in two main ways using its Tracer subsystem. Firstly, it uses shared memory to record the labels covered by each test case. Secondly, it evaluates test cases, and those of high impact are turned into seeds for subsequent test fuzzing. We evaluated FuSeBMC by participating in Test-Comp 2022 to test the ability of the tool in two categories of the competition, which are code coverage and bug detection. The Test-Comp 2022 results show that we significantly increased our code coverage score from last year, outperforming all tools in all categories. During years (2021 & 2022), FuSeBMC achieved 6 awards (4 Gold🥇 Medals - 1 Silver🥈 Medal - 1 Bronze🥉 Medal).
 
 
-FuSeBMC files:
-https://doi.org/10.5281/zenodo.4697593
+FuSeBMC v4 files:
+https://gitlab.com/sosy-lab/test-comp/archives-2022/-/raw/main/2022/FuSeBMC.zip?inline=false
 
 The results of FuSeBMC in Test-Comp 2022 are available in this link:
 https://test-comp.sosy-lab.org/2022/results/results-verified/
