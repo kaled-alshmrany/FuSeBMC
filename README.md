@@ -14,9 +14,15 @@ https://test-comp.sosy-lab.org/2021/systems.php
 Presentation and tutorial:
 https://drive.google.com/drive/folders/1XMnNkAGP1e6ZuoygBTEaanM80I_QRe_g?usp=sharing
 
-For more details, we recommend to read our published paper:
-https://ssvlab.github.io/lucasccordeiro/papers/fase2022.pdf
-https://link.springer.com/chapter/10.1007/978-3-030-71500-7_19
+For more details, we recommend to read our published papers:
+
+1- https://arxiv.org/abs/2206.14068 (2023)
+
+2- https://link.springer.com/chapter/10.1007/978-3-030-99429-7_19 (2022)
+
+3- https://link.springer.com/chapter/10.1007/978-3-030-79379-1_6 (2021)
+
+4- https://link.springer.com/chapter/10.1007/978-3-030-71500-7_19 (2020)
 
 
   <br /><br />
