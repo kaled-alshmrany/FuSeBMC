@@ -29,40 +29,46 @@ from fusebmc_util.inputtype import InputType
 from fusebmc_util.nonblockingstreamreader import NonBlockingStreamReader
 from fusebmc_util.assumptions import AssumptionHolder, AssumptionParser, MetadataParser
 from fusebmc_util.graph import Vertex, Graph,shortest,dijkstra
-if RUN_TESTCOV: from fusebmc_util.testcov import *
+
+from fusebmc_util.testcov import *
+from fusebmc_ml.Feature import Feature
 #os.system('clear')
 FUSEBMC_VERSION = 'v.4.1.14'
 
 
+# This must be the first statement before other statements.
+# You may only put a quoted or triple quoted string, 
+# Python comments, other future statements, or blank lines before the __future__ line.
+'''
+try:
+	import __builtin__
+except ImportError:
+	#Python 3
+	import builtins as __builtin__
 
+def print(*args, **kwargs):
+	"""My custom print() function."""
+	__builtin__.print('My overridden print() function!')
+	return __builtin__.print(*args, **kwargs)
+'''
 # Start time for this script
 start_time = time.time()
 #start_time=process_time()
 property_file_content = ""
 category_property = 0
-benchmark=''
+#benchmark=''
 property_file=''
 witness_file_name=''
 toWorkSourceFile=''
-arch=''
+
 infinteWhileNum = 0
 isConcurrency = False
-
-WRAPPER_Output_Dir ='./fusebmc_output/'
-TestSuite_Dir = 'test-suite/'
-
-INSTRUMENT_Output_Dir = './fusebmc_instrument_output/'
-INSTRUMENT_Output_File = './fusebmc_instrument_output/instrumented.c'
-INSTRUMENT_Output_Goals_File = './fusebmc_instrument_output/goals.txt'
-#INSTRUMENT_OUTPUT_GOALS_DIR = './fusebmc_instrument_output/goals_output/'
-
 
 
 map2checkWitnessFile='' # will be set later in the wrapper output
 
-time_out_s = 890 # 890 seconds 
-time_for_zipping_s = 10 # the required time for zipping folder; Can Zero ??
-is_ctrl_c = False
+#time_out_s = 890 # 890 seconds 
+time_for_zipping_s = 3 # the required time for zipping folder; Can Zero ??
 remaining_time_s = 0
 
 goals_count = 0
@@ -89,7 +95,7 @@ stdCFuncsLst = []
 lstAllTestcases, lstFuzzerSeeds, lstFuzzerSeeds2 = [], [], [] # [(goal_id1,assumptioLst1),(goal_id2,assumptionLst2)]
 lstFuSeBMC_GoalTracerGoals, lstFuSeBMC_FuzzerGoals = [], []
 nRepeatedTCs = 0
-
+feature : Feature = None
 
 
 FuSeBMCFuzzerLib_CoverBranches_Input_Covered_Goals_File = ''
@@ -104,11 +110,11 @@ important_outs_by_ESBMC=["Timed out","Out of memory","Chosen solver doesn\'t sup
 						"dereference failure: invalid pointer freed","dereference failure: free() of non-dynamic memory","array bounds violated",
 						"Operand of free must have zero pointer offset", "VERIFICATION FAILED", "unwinding assertion loop", 
 						" Verifier error called", "VERIFICATION SUCCESSFUL"]
-#def timeOutSigHandler(signum, frame):
-#	print(TColors.FAIL,'Timeout signal recieved',TColors.ENDC)
-#	with open (WRAPPER_Output_Dir + '/.timeout.txt','w') as f:
-#		f.write('TIME OUT...... Ha')
-#	exit(0)
+def timeOutSigHandler(signum, frame):
+	print(TColors.FAIL,'Timeout signal recieved',TColors.ENDC)
+	with open (FuSeBMCParams.WRAPPER_Output_Dir + '/.timeout.txt','w') as f:
+		f.write('TIME OUT...... Ha')
+	exit(0)
 
 current_process_name = ''
 def limit_virtual_memory():
@@ -138,13 +144,14 @@ def limit_virtual_memory():
 
 #maxRSS = 0
 def IsTimeOut(must_throw_ex = False):
-	global is_ctrl_c
-	global time_out_s
 	global start_time
 	global remaining_time_s
 	#global maxRSS
 	#global lasttime
-	if is_ctrl_c is True: raise KeyboardInterrupt()
+	if FuSeBMCParams.is_ctrl_c is True: raise KeyboardInterrupt()
+	
+	if FuSeBMCParams.forceStop: raise KeyboardInterrupt()
+	
 	if IS_TIME_OUT_ENABLED == False: return False
 
 	#curr_gp_times = os.times()
@@ -156,14 +163,14 @@ def IsTimeOut(must_throw_ex = False):
 	
 	#if(exec_time_s != lasttime):
 	#	lasttime=exec_time_s
-	#	logText('exec_time_s=' + str(exec_time_s) + ' time_out_s:' + str(time_out_s) + '\n')
+	#	logText('exec_time_s=' + str(exec_time_s) + ' FuSeBMCParams.time_out_s:' + str(FuSeBMCParams.time_out_s) + '\n')
 
 	end_time = time.time()
 	wall_exec_time_s=(end_time - start_time)
-	wall_remaining_time_s= time_out_s - wall_exec_time_s
+	wall_remaining_time_s= FuSeBMCParams.time_out_s - wall_exec_time_s
 	remaining_time_s = wall_remaining_time_s
 	isWallTimeout = False
-	if(wall_exec_time_s >= time_out_s):
+	if(wall_exec_time_s >= FuSeBMCParams.time_out_s):
 		isWallTimeout = True
 		if must_throw_ex:
 			raise MyTimeOutException()
@@ -181,12 +188,12 @@ def IsTimeOut(must_throw_ex = False):
 	
 	#print('cpu_exec_time_s',cpu_exec_time_s)
 
-	cpu_remaining_time_s = time_out_s - cpu_exec_time_s
+	cpu_remaining_time_s = FuSeBMCParams.time_out_s - cpu_exec_time_s
 	if cpu_remaining_time_s < remaining_time_s :
 		remaining_time_s = cpu_remaining_time_s
 
 	isCpuTimeout = False
-	if(cpu_exec_time_s >= time_out_s):
+	if(cpu_exec_time_s >= FuSeBMCParams.time_out_s):
 		isCpuTimeout = True
 		if must_throw_ex:
 			raise MyTimeOutException()
@@ -195,7 +202,7 @@ def IsTimeOut(must_throw_ex = False):
 
 def WriteMetaDataFromWrapper():
 	now = datetime.now()
-	Meta_Data_File = TestSuite_Dir + '/metadata.xml'
+	Meta_Data_File = FuSeBMCParams.TestSuite_Dir + '/metadata.xml'
 	with open(Meta_Data_File, 'w') as meta_f:
 		meta_f.write('<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE test-metadata PUBLIC "+//IDN sosy-lab.org//DTD test-format test-metadata 1.0//EN" "https://sosy-lab.org/test-format/test-metadata-1.0.dtd">')
 		meta_f.write('<test-metadata>')
@@ -203,13 +210,13 @@ def WriteMetaDataFromWrapper():
 		meta_f.write('<specification>'+property_file_content.strip()+'</specification>')
 		meta_f.write('<sourcecodelang>'+'C'+'</sourcecodelang>')
 		_arch ='32bit'
-		if arch == 64: _arch='64bit'
+		if FuSeBMCParams.arch == 64: _arch='64bit'
 		meta_f.write('<architecture>'+_arch+'</architecture>')
 		#meta_f.write('<creationtime>2020-07-27T21:33:51.462605</creationtime>')
 		meta_f.write('<creationtime>'+now.strftime("%Y-%m-%dT%H:%M:%S.%f")+'</creationtime>')
-		meta_f.write('<programhash>'+GetSH1ForFile(benchmark)+'</programhash>')
+		meta_f.write('<programhash>'+GetSH1ForFile(FuSeBMCParams.benchmark)+'</programhash>')
 		meta_f.write('<producer>FuSeBMC ' + FUSEBMC_VERSION + '</producer>')
-		meta_f.write('<programfile>'+benchmark+'</programfile>')
+		meta_f.write('<programfile>'+FuSeBMCParams.benchmark+'</programfile>')
 		meta_f.write('</test-metadata>')
 
 class NonDeterministicCall(object):
@@ -267,7 +274,7 @@ class NonDeterministicCall(object):
 				_,val = pAssumptionHolder.assumption.split(' == ')
 			except Exception as ex:
 				if IS_DEBUG:
-					print(TColors.FAIL+ ' Error in File (fromAssumptionHolder,isFromMap2Check):'+ TColors.ENDC, benchmark)
+					print(TColors.FAIL+ ' Error in File (fromAssumptionHolder,isFromMap2Check):'+ TColors.ENDC, FuSeBMCParams.benchmark)
 				val = '0'
 		else:
 			#assum_l,assum_r= assumption.split('=')
@@ -288,7 +295,7 @@ class NonDeterministicCall(object):
 					val = val[:-1]
 			except Exception as ex:
 				if IS_DEBUG:
-					print(TColors.FAIL+ ' Error in File (fromAssumptionHolder):'+ TColors.ENDC, benchmark)
+					print(TColors.FAIL+ ' Error in File (fromAssumptionHolder):'+ TColors.ENDC, FuSeBMCParams.benchmark)
 				val = '0'
 				#return None
 				pass
@@ -370,7 +377,7 @@ class SourceCodeChecker(object):
 			return x_right != y_right
 		except Exception as ex:
 			if IS_DEBUG:
-				print(TColors.FAIL+ 'Error in File (__is_not_repeated__):'+TColors.ENDC , benchmark)
+				print(TColors.FAIL+ 'Error in File (__is_not_repeated__):'+TColors.ENDC , FuSeBMCParams.benchmark)
 		return True
 
 	def __isNonDet__(self, p_AssumptionHolder):
@@ -468,7 +475,7 @@ def createTestFile(witness, source,testCaseFileName,isFromMap2Check = False):
 	#print('WE HAVE', len(assumptions))
 	assumptionsLen = len(assumptions)
 	if(assumptionsLen > 0):
-		if FuSeBMCFuzzerLib_ERRORCALL_ENABLED:
+		if FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_ENABLED:
 			AddToFuzzerSeedsLst_ErrorCall(os.path.basename(testCaseFileName), assumptions)
 		generate_testcase_from_assumption_ErrorCall(testCaseFileName,assumptions)
 		#
@@ -480,16 +487,16 @@ def CompileFile(fil, include_dir = '.'):
 	if not os.path.isfile(fil):
 		print('FILE:',fil, 'not exists')
 		exit(0)
-	out_obj = WRAPPER_Output_Dir +os.sep+GenerateRondomFileName()+'.o'
+	out_obj = FuSeBMCParams.WRAPPER_Output_Dir +os.sep+GenerateRondomFileName()+'.o'
 	cmd=[C_COMPILER,'-c',fil , '-o', out_obj,'-I'+include_dir]
-	runWithoutTimeoutEnabled(' '.join(cmd), WRAPPER_Output_Dir, True)
+	runWithoutTimeoutEnabled(' '.join(cmd), FuSeBMCParams.WRAPPER_Output_Dir, True)
 	if not os.path.isfile(out_obj):
 		print('Cannot compile: ',fil)
 		exit(0)
 
 
 def run_without_output(cmd_line, pCwd = None):
-	if(SHOW_ME_OUTPUT): print(cmd_line)
+	if(FuSeBMCParams.SHOW_ME_OUTPUT): print(cmd_line)
 	the_args = shlex.split(cmd_line)
 	if not pCwd is None:
 		_ = subprocess.run(the_args, stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,cwd=pCwd)
@@ -501,13 +508,13 @@ def run_without_output(cmd_line, pCwd = None):
 def run(cmd_line):
 	global category_property
 	global important_outs_by_ESBMC
-	global is_ctrl_c
+	
 	mustReturnImportantOutput = not (category_property == Property.cover_branches or \
 					category_property == Property.cover_error_call)
-	mustSendToDevNull = mustReturnImportantOutput == False and SHOW_ME_OUTPUT == False
+	mustSendToDevNull = mustReturnImportantOutput == False and FuSeBMCParams.SHOW_ME_OUTPUT == False
 	#print('mustReturnImportantOutput',mustReturnImportantOutput)
 	#print('mustSendToDevNull',mustSendToDevNull)
-	if(SHOW_ME_OUTPUT): print (TColors.BOLD,'\nCommand:\n', cmd_line, TColors.ENDC)
+	if(FuSeBMCParams.SHOW_ME_OUTPUT): print (TColors.BOLD,'\nCommand:\n', cmd_line, TColors.ENDC)
 	if mustReturnImportantOutput:
 		outs=['' for _ in range(MAX_NUM_OF_LINES_OUT)]
 		errs=['' for _ in range(MAX_NUM_OF_LINES_ERRS)]
@@ -544,7 +551,9 @@ def run(cmd_line):
 				if output:
 					try:os.wait4(p.pid, os.WNOHANG)
 					except ChildProcessError as cpe_ex: pass
-					if(SHOW_ME_OUTPUT): print(output)
+					if(FuSeBMCParams.SHOW_ME_OUTPUT):
+						print(output)
+						sys.stdout.flush()
 					if mustReturnImportantOutput:
 						index =(index + 1) % MAX_NUM_OF_LINES_OUT
 						isAddedToImportant=False
@@ -565,7 +574,7 @@ def run(cmd_line):
 					if err:
 						try:os.wait4(p.pid, os.WNOHANG)
 						except ChildProcessError as cpe_ex: pass
-						if(SHOW_ME_OUTPUT): print(err)
+						if(FuSeBMCParams.SHOW_ME_OUTPUT): print(err)
 						index_err =(index_err + 1) % MAX_NUM_OF_LINES_ERRS
 						isAddedToImportant=False
 						for out_by_ESBMC in important_outs_by_ESBMC:
@@ -588,7 +597,7 @@ def run(cmd_line):
 			except Exception: pass
 		raise e
 	except KeyboardInterrupt:
-		is_ctrl_c = True
+		FuSeBMCParams.is_ctrl_c = True
 	except Exception as ex: HandleException(ex,cmd_line)
 		#exit(0)
 	#getTime(p.pid)
@@ -618,8 +627,8 @@ def run(cmd_line):
 	return out_str
 
 def runWithTimeoutEnabled(cmd_line,pCwd=None,p_process_name=None):
-	global is_ctrl_c
-	if(SHOW_ME_OUTPUT): print (TColors.BOLD, '\nCommand:\n', cmd_line ,TColors.ENDC)
+	
+	if(FuSeBMCParams.SHOW_ME_OUTPUT): print (TColors.BOLD, '\nCommand:\n', cmd_line ,TColors.ENDC)
 	the_args = shlex.split(cmd_line)
 	p = None
 	is_time_out_local = False
@@ -638,7 +647,9 @@ def runWithTimeoutEnabled(cmd_line,pCwd=None,p_process_name=None):
 				try:os.wait4(p.pid, os.WNOHANG)
 				except ChildProcessError as cpe_ex: pass
 				
-				if(SHOW_ME_OUTPUT): print(output)
+				if(FuSeBMCParams.SHOW_ME_OUTPUT):
+					print(output)
+					sys.stdout.flush()
 			else:
 				IsTimeOut(True)
 				#time.sleep(0.1)
@@ -648,12 +659,12 @@ def runWithTimeoutEnabled(cmd_line,pCwd=None,p_process_name=None):
 		#	if err:
 		#		try:os.wait4(p.pid, os.WNOHANG)
 		#		except ChildProcessError as cpe_ex: pass
-		#		if(SHOW_ME_OUTPUT): print(err)
+		#		if(FuSeBMCParams.SHOW_ME_OUTPUT): print(err)
 		#	else:
 		#		IsTimeOut(True)
 				#time.sleep(0.1)
 	except MyTimeOutException: is_time_out_local = True
-	except KeyboardInterrupt: is_ctrl_c = True
+	except KeyboardInterrupt: FuSeBMCParams.is_ctrl_c = True
 	except Exception as ex: HandleException(ex,cmd_line)
 		#print('CTRLLLLLLLLLL')
 	# Kill ESBMC When Timeout (maybe)
@@ -675,8 +686,8 @@ def runWithTimeoutEnabled(cmd_line,pCwd=None,p_process_name=None):
 		raise MyTimeOutException()
 
 def runWithoutTimeoutEnabled(cmd_line,pCwd=None,forceOutput = False):
-	global is_ctrl_c
-	if(forceOutput or SHOW_ME_OUTPUT): print (TColors.BOLD, '\nCommand:\n', cmd_line ,TColors.ENDC)
+	
+	if(forceOutput or FuSeBMCParams.SHOW_ME_OUTPUT): print (TColors.BOLD, '\nCommand:\n', cmd_line ,TColors.ENDC)
 	the_args = shlex.split(cmd_line)
 	p = None
 	nbsr_out = None
@@ -692,15 +703,17 @@ def runWithoutTimeoutEnabled(cmd_line,pCwd=None,forceOutput = False):
 				#try:os.wait4(p.pid, os.WNOHANG)
 				#except ChildProcessError as cpe_ex: pass
 				
-				if(forceOutput or SHOW_ME_OUTPUT): print(output)
+				if(forceOutput or FuSeBMCParams.SHOW_ME_OUTPUT):
+					print(output)
+					sys.stdout.flush()
 		#while nbsr_err.hasMore():
 		#	err = nbsr_err.readline(1) # 0.01
 		#	if err:
 		#		#try:os.wait4(p.pid, os.WNOHANG)
 		#		#except ChildProcessError as cpe_ex: pass
-		#		if(forceOutput or SHOW_ME_OUTPUT): print(err)
+		#		if(forceOutput or FuSeBMCParams.SHOW_ME_OUTPUT): print(err)
 
-	except KeyboardInterrupt: is_ctrl_c = True
+	except KeyboardInterrupt: FuSeBMCParams.is_ctrl_c = True
 	if p is not None:
 		try:
 			#if p.poll() is None: # proc still working
@@ -715,81 +728,141 @@ def runWithoutTimeoutEnabled(cmd_line,pCwd=None,forceOutput = False):
 			while nbsr_out is not None and  nbsr_out.hasMore():
 				output = nbsr_out.readline(1) # second 0.01
 				if output:
-					if(forceOutput or SHOW_ME_OUTPUT): print(output)
+					if(forceOutput or FuSeBMCParams.SHOW_ME_OUTPUT): print(output)
 			#while nbsr_err is not None and nbsr_err.hasMore():
 			#	err = nbsr_err.readline(1) # 0.01
 			#	if err:
-			#		if(forceOutput or SHOW_ME_OUTPUT): print(err)
+			#		if(forceOutput or FuSeBMCParams.SHOW_ME_OUTPUT): print(err)
 		except:
 			#print('EXXXXXXXX')
 			pass
-
+def get_command_line_svcomp(strat, prop, arch, benchmark, fp_mode):
+	global stdCFuncsLst, isConcurrency
+	if prop == Property.memcleanup:
+		command_line = ESBMC_CONCURRENCY_EXE + ' '
+	else:
+		command_line = ESBMC_SVCOMP + ' '
+	FuSeBMCParams.esbmc_dargs = f"--{FuSeBMCParams.solver} --{FuSeBMCParams.encoding} --no-div-by-zero-check --force-malloc-success --state-hashing "
+	FuSeBMCParams.esbmc_dargs += f"--no-align-check --k-step {FuSeBMCParams.k_step} "
+	
+	#added by Machine Learning
+	#FuSeBMCParams.esbmc_dargs += f"--unwind {FuSeBMCParams.UNWIND} "
+	
+	if FuSeBMCParams.addSymexValueSets:
+		FuSeBMCParams.esbmc_dargs += "--add-symex-value-sets "
+	
+	if FuSeBMCParams.MAX_K_STEP == -1:
+		FuSeBMCParams.esbmc_dargs += "--unlimited-k-steps "
+	else:
+		FuSeBMCParams.esbmc_dargs += f"--max-k-step {FuSeBMCParams.MAX_K_STEP} "
+	
+	if FuSeBMCParams.UNWIND != -1:
+		FuSeBMCParams.esbmc_dargs += f"--unwind {FuSeBMCParams.UNWIND} "
+	
+	command_line += FuSeBMCParams.esbmc_dargs
+	command_line += benchmark + " --quiet "
+	if arch == 32: command_line += "--32 "
+	else: command_line += "--64 "
+	
+	concurrency = (category_property == Property.unreach_call) and \
+						(isConcurrency or len(stdCFuncsLst) > 0 )
+	if concurrency:
+		command_line += f" --no-por --context-bound {FuSeBMCParams.contextBound} --no-goto-merge "
+	
+	# Special case for termination, it runs regardless of the strategy
+	if prop == Property.termination:
+		command_line += "--no-pointer-check --no-bounds-check --no-assertions "
+		command_line += f"--termination --max-inductive-step {FuSeBMCParams.maxInductiveStep} "
+		return command_line
+	if prop == Property.overflow:
+		command_line += "--no-pointer-check --no-bounds-check --overflow-check --no-assertions "
+	elif prop == Property.memsafety:
+		command_line += "--memory-leak-check --no-assertions "
+		#strat = "incr"
+	elif prop == Property.memcleanup:
+		command_line += "--no-pointer-check --no-bounds-check --memory-leak-check --memory-cleanup-check --no-assertions "
+		#strat = "incr"
+	elif prop == Property.unreach_call:
+		if concurrency:
+			command_line += "--no-pointer-check --no-bounds-check "
+		else:
+			command_line += "--no-pointer-check --no-bounds-check --interval-analysis --error-label ERROR --goto-unwind --unlimited-goto-unwind "
+	else:
+		print("Unknown property")
+		exit(1)
+	
+	# Add strategy
+	if concurrency: # Concurrency only works with incremental
+		command_line += "--incremental-bmc "
+	elif strat == "fixed":
+		command_line += f"--k-induction --max-inductive-step {FuSeBMCParams.maxInductiveStep} "
+	elif strat == "kinduction":
+		command_line += f"--k-induction --max-inductive-step {FuSeBMCParams.maxInductiveStep} "
+	elif strat == "falsi":
+		command_line += "--falsification "
+	elif strat == "incr":
+		command_line += "--incremental-bmc "
+	else:
+		print("Unknown strategy")
+		exit(1)
+	
+	
+	return command_line
+	
 def get_command_line(strat, prop, arch, benchmark, fp_mode):
 	global goals_count
 	global runNumber
 	global stdCFuncsLst, isConcurrency
-	if isConcurrency or len(stdCFuncsLst) > 0 :
-		command_line = ESBMC_CONCURRENCY_EXE + esbmc_dargs
-	else:
-		command_line = ESBMC_EXE + esbmc_dargs
-
-	command_line += benchmark + " --quiet "
-	if arch == 32:
-		command_line += "--32 "
-	else:
-		command_line += "--64 "
-	# Add witness arg , Now Added in Verify method.
-	#witness_file_name = os.path.basename(benchmark) + ".graphml "
-	#if prop != Property.cover_branches and prop != Property.cover_error_call:
-	#	command_line += "--witness-output " + witness_file_name
-	#BEGIN
-	# Special case for termination, it runs regardless of the strategy
-	if prop == Property.termination:
-		if MEM_OVERFLOW_REACH_TERM_RUNTWICE_ENABLED and runNumber ==1:
-			command_line += "--partial-loops --no-pointer-check --no-bounds-check --no-assertions --termination --max-inductive-step 3 "
-		else:
-			command_line += "--no-pointer-check --no-bounds-check --no-assertions --termination --max-inductive-step 3 "
-		return command_line	
 	
-	if prop == Property.overflow:
-		if MEM_OVERFLOW_REACH_TERM_RUNTWICE_ENABLED and runNumber ==1:
-			command_line += "--partial-loops --no-pointer-check --no-bounds-check --overflow-check --no-assertions "
+	#if FuSeBMCParams.ML == Feature.PredicateParams or FuSeBMCParams.ML == Feature.ExtractFeaturesOnly:
+	strat= FuSeBMCParams.strategy
+	if category_property in [Property.memsafety ,Property.overflow,
+							 Property.unreach_call,Property.termination, Property.memcleanup]:
+		return get_command_line_svcomp(strat, prop, arch, benchmark, fp_mode)
+	
+	if isConcurrency or len(stdCFuncsLst) > 0 :
+		command_line = ESBMC_CONCURRENCY_EXE + ' '
+	else:
+		command_line = ESBMC_EXE + ' '
+	FuSeBMCParams.esbmc_dargs = f"--{FuSeBMCParams.solver} --{FuSeBMCParams.encoding} --no-div-by-zero-check --force-malloc-success --state-hashing "
+	FuSeBMCParams.esbmc_dargs += f"--no-align-check --k-step {FuSeBMCParams.k_step}  "
+	FuSeBMCParams.esbmc_dargs += f"--context-bound {FuSeBMCParams.contextBound} "
+	FuSeBMCParams.esbmc_dargs += "--show-cex "
+	#FuSeBMCParams.esbmc_dargs += " --overflow-check "
+	command_line += FuSeBMCParams.esbmc_dargs
+	command_line += benchmark + " --quiet "
+	if arch == 32: command_line += "--32 "
+	else: command_line += "--64 "
+	
+	if prop == Property.cover_branches:
+		if FuSeBMCParams.UNWIND != -1:
+			command_line += f"--unwind {FuSeBMCParams.UNWIND} "
+		if FuSeBMCParams.MAX_K_STEP == -2: #default
+			if(goals_count>100):
+				if (goals_count<250):
+					command_line += f"--max-k-step 30 --no-pointer-check --no-bounds-check --no-slice "
+				else:
+					command_line += f"--max-k-step 10 --no-pointer-check --no-bounds-check --no-slice "
+			else:#(goals_count<100)
+				command_line += f"--unlimited-k-steps --no-pointer-check --no-bounds-check --no-slice "
+		elif FuSeBMCParams.MAX_K_STEP == -1: #unlimited
+			command_line += f"--unlimited-k-steps --no-pointer-check --no-bounds-check --no-slice "
 		else:
-			command_line += "--no-pointer-check --no-bounds-check --overflow-check --no-assertions "
-	elif prop == Property.memsafety:
-		strat = "incr"
-		if MEM_OVERFLOW_REACH_TERM_RUNTWICE_ENABLED and runNumber ==1:
-			command_line += "--partial-loops --memory-leak-check --no-assertions "
-		else:
-			command_line += "--memory-leak-check --no-assertions "
-	elif prop == Property.memcleanup:
-		strat = "incr"
-		if MEM_OVERFLOW_REACH_TERM_RUNTWICE_ENABLED and runNumber ==1:
-			command_line += "--partial-loops --memory-leak-check --no-assertions "
-		else:
-			command_line += "--memory-leak-check --no-assertions "
-	elif prop == Property.unreach_call:
-		if MEM_OVERFLOW_REACH_TERM_RUNTWICE_ENABLED and runNumber ==1:
-			command_line += "--partial-loops --no-pointer-check --no-bounds-check --interval-analysis "
-		else:
-			command_line += "--no-pointer-check --no-bounds-check --interval-analysis "
-	elif prop == Property.cover_branches:
-		if(goals_count>100):
-			if (goals_count<250):
-				command_line += "--max-k-step 30 --unwind 1 --no-pointer-check --no-bounds-check --no-slice "
-			else:
-				command_line += "--max-k-step 10 --unwind 1 --no-pointer-check --no-bounds-check --no-slice "
-		else:#(goals_count<100)
-			command_line += "--unlimited-k-steps --unwind 1 --no-pointer-check --no-bounds-check --no-slice "
+			command_line += f"--max-k-step {FuSeBMCParams.MAX_K_STEP} --no-pointer-check --no-bounds-check --no-slice "
 		if isConcurrency or len(stdCFuncsLst) > 0:
 			pass
 		else:
 			command_line += "--interval-analysis "
+		#20.05.2020 + #03.06.2020 kaled: adding the option "--unlimited-k-steps" for coverage_error_call .... --max-k-step 5
 	elif prop == Property.cover_error_call:
-		if ERRORCALL_RUNTWICE_ENABLED and runNumber ==1:
-			command_line += "--partial-loops --no-pointer-check --no-bounds-check   --no-slice "
+	#kaled : 03.06.2020 --unwind 10 --partial-loops
+		if FuSeBMCParams.ERRORCALL_RUNTWICE_ENABLED and runNumber ==1:
+			command_line += "--partial-loops --no-pointer-check --no-bounds-check --no-slice "
 		else:
-			command_line += "--unlimited-k-steps --no-pointer-check --no-bounds-check  --no-slice "
+			if FuSeBMCParams.MAX_K_STEP == -2 or FuSeBMCParams.MAX_K_STEP == -1 : #-2:default, -1 unlimited
+				command_line += "--unlimited-k-steps --no-pointer-check --no-bounds-check --no-slice "
+			else:
+				command_line += f"--max-k-step {FuSeBMCParams.MAX_K_STEP} --no-pointer-check --no-bounds-check --no-slice "
 		if isConcurrency or len(stdCFuncsLst) > 0:
 			pass
 		else:
@@ -799,12 +872,14 @@ def get_command_line(strat, prop, arch, benchmark, fp_mode):
 		exit(1)
 	
 	# Add strategy
-	if strat == "fixed":
-		command_line += "--k-induction --max-inductive-step 3 "
+	if isConcurrency: # Concurrency only works with incremental
+		command_line += "--incremental-bmc "
+	elif strat == "fixed":
+		command_line += f"--k-induction --max-inductive-step {FuSeBMCParams.maxInductiveStep} "
 	elif strat == "kinduction":
 		#TODO: Check this
 		#command_line += "--bidirectional "
-		command_line += "--k-induction --max-inductive-step 3 "
+		command_line += f"--k-induction --max-inductive-step {FuSeBMCParams.maxInductiveStep} "
 	elif strat == "falsi":
 		command_line += "--falsification "
 	elif strat == "incr":
@@ -816,7 +891,9 @@ def get_command_line(strat, prop, arch, benchmark, fp_mode):
 	# if we're running in FP mode, use MathSAT
 	if fp_mode:
 		command_line += "--mathsat "
-	return command_line
+	return command_line	
+	
+
 
 def generate_testcase_from_assumption_ErrorCall(p_test_case_file_full,p_inst_assumptions):
 	inst_len = len(p_inst_assumptions)
@@ -854,7 +931,7 @@ def generate_testcase_from_assumption_CoverBranches(p_test_case_file_full,p_inst
 			testcase_file.write('<input'+cType+'>'+nonDeterministicCall.value +'</input>\n')
 		
 		if p_isSelectiveFuzzer == False:
-			tracer_testcase_file = WRAPPER_Output_Dir + '/tracer_testcase.txt'
+			tracer_testcase_file = FuSeBMCParams.WRAPPER_Output_Dir + '/tracer_testcase.txt'
 			if(os.path.isfile(tracer_testcase_file)):
 				if IS_DEBUG: testcase_file.write('<!-- FuSeBMC_Tracer -->\n')
 				with open(tracer_testcase_file, 'r') as tracer_testcase_f:
@@ -871,7 +948,7 @@ def generate_testcase_from_assumption_CoverBranches(p_test_case_file_full,p_inst
 def ReplaceGoalLabelWithFuseGoalCalledMethod(src_file, dest_file):
 	goalRegex = re.compile('GOAL_([0-9]+):')
 	with open(dest_file,'w') as fout:
-		if FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
+		if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
 			fout.write('unsigned int fuSeBMC_category = 2 ;\n')
 			
 			#fout.write('extern void fuSeBMC_return(int code);\n')
@@ -902,7 +979,7 @@ def ReplaceGoalLabelWithFuseGoalCalledMethod(src_file, dest_file):
 
 def getFullLibName(p_lib, p_arch, p_isConcurrency):
 	con = '_c' if p_isConcurrency == True else '';
-	return '-l'+p_lib+con+'_'+str(arch)
+	return '-l'+p_lib+con+'_'+str(p_arch)
 
 def RunAFLForCoverBranches(instrumented_afl_file):
 	'''
@@ -917,14 +994,14 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 	global goals_count, infinteWhileNum, selectiveInputsLst
 	global stdCFuncsLst, isConcurrency
 	
-	FuSeBMCFuzzerLib_CoverBranches_Seed_Dir = os.path.abspath(os.path.join(WRAPPER_Output_Dir, 'seeds'))
+	FuSeBMCFuzzerLib_CoverBranches_Seed_Dir = os.path.abspath(os.path.join(FuSeBMCParams.WRAPPER_Output_Dir, 'seeds'))
 	MakeFolderEmptyORCreate(FuSeBMCFuzzerLib_CoverBranches_Seed_Dir)
 	l_seed_dir = FuSeBMCFuzzerLib_CoverBranches_Seed_Dir
 	
 	# Write lstFuzzerSeeds:
 	for goal_id, assump_lst in lstFuzzerSeeds:
 		seed_filename = os.path.join(FuSeBMCFuzzerLib_CoverBranches_Seed_Dir,'s_'+str(goal_id)+'.bin')
-		testcaseSize = WriteTestcaseInSeedFile(assump_lst,seed_filename,arch)
+		testcaseSize = WriteTestcaseInSeedFile(assump_lst,seed_filename,FuSeBMCParams.arch)
 			#if afl_min_length < testcaseSize : afl_min_length = testcaseSize
 		if(testcaseSize > 0 and testcaseSize > FuSeBMCFuzzerLib_CoverBranches_Max_Testcase_Size_Btyes):
 			FuSeBMCFuzzerLib_CoverBranches_Max_Testcase_Size_Btyes = testcaseSize
@@ -955,7 +1032,7 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 	#afl_min_length = -1
 	if IS_DEBUG:
 		print('    afl_min_length=', afl_min_length , 'Byte(s)')
-		#print('    Timeout=', FuSeBMCFuzzerLib_COVERBRANCHES_TIMEOUT , 'Second(s)')
+		#print('    Timeout=', FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_TIMEOUT , 'Second(s)')
 		print('    Remaining_time_s =',remaining_time_s,'Second(s).')
 	try:
 		lstGoalsFuzzerInput = [gl for gl in lstFuSeBMC_GoalTracerGoals]
@@ -964,11 +1041,11 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 		with open (FuSeBMCFuzzerLib_CoverBranches_Input_Covered_Goals_File,'w') as f_covered:
 			for gl in lstGoalsFuzzerInput: f_covered.write(str(gl)+'\n')
 		
-		afl_result_file = WRAPPER_Output_Dir + '/afl_result.txt'
+		afl_result_file = FuSeBMCParams.WRAPPER_Output_Dir + '/afl_result.txt'
 		RemoveFileIfExists(afl_result_file)
 		FuSeBMCFuzzerLib_CoverBranches_Done = True
-		#ReplaceGoalLabelWithFuseGoalCalledMethod(INSTRUMENT_Output_File, instrumented_afl_file)
-		afl_fuzzer_bin = os.path.abspath(WRAPPER_Output_Dir+'/afl.exe')
+		#ReplaceGoalLabelWithFuseGoalCalledMethod(FuSeBMCParams.INSTRUMENT_Output_File, instrumented_afl_file)
+		afl_fuzzer_bin = os.path.abspath(FuSeBMCParams.WRAPPER_Output_Dir+'/afl.exe')
 		lstFuSeBMC_FuzzerGoals_tmp = []
 		os.environ["AFL_QUIET"] = "1"
 		os.environ["AFL_DONT_OPTIMIZE"] = "1"
@@ -981,17 +1058,17 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 								'-D abort=fuSeBMC_abort_prog',
 								#'-D read=fuSeBMC_read_X',
 								#'-D write=fuSeBMC_write_X',
-								'-I'+os.path.dirname(benchmark),
-								'-m'+str(arch), '-Wno-attributes', #'-D__alias__(x)=',
+								'-I'+os.path.dirname(FuSeBMCParams.benchmark),
+								'-m'+str(FuSeBMCParams.arch), '-Wno-attributes', #'-D__alias__(x)=',
 								'-o',afl_fuzzer_bin,
 								'-L./FuSeBMC_FuzzerLib/',instrumented_afl_file,
-								getFullLibName('FuSeBMC_FuzzerLib',arch, isConcurrency),'-lm','-lpthread']
+								getFullLibName('FuSeBMC_FuzzerLib',FuSeBMCParams.arch, isConcurrency),'-lm','-lpthread']
 		for func in stdCFuncsLst:
 			compile_afl_lst.append('-D ' + func + '='+func+'_XXXX')
 		runWithTimeoutEnabled(' '.join(compile_afl_lst))
 		if not os.path.isfile(afl_fuzzer_bin): raise Exception (afl_fuzzer_bin + ' Not found.')
 		
-		tcgen_bin = os.path.abspath(WRAPPER_Output_Dir+'/tcgen.exe')
+		tcgen_bin = os.path.abspath(FuSeBMCParams.WRAPPER_Output_Dir+'/tcgen.exe')
 		compile_tcgen_lst = [FuSeBMCFuzzerLib_TESTCASE_GEN_CC,FuSeBMCFuzzerLib_TESTCASE_GEN_CC_PARAMS,
 								#'gcc',
 								#'-D exit=fuSeBMC_exit', '-D abort=fuSeBMC_abort_prog',
@@ -999,11 +1076,11 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 								'-std=gnu11',
 								'-D abort=fuSeBMC_abort_prog',
 								#'-std=c99',
-								'-I'+os.path.dirname(benchmark),
-								'-m'+str(arch), '-Wno-attributes', #'-D__alias__(x)=',
+								'-I'+os.path.dirname(FuSeBMCParams.benchmark),
+								'-m'+str(FuSeBMCParams.arch), '-Wno-attributes', #'-D__alias__(x)=',
 								'-o',tcgen_bin,
 								'-L./FuSeBMC_TCGen/',instrumented_afl_file,
-								getFullLibName('FuSeBMC_TCGen', arch, isConcurrency),'-lm','-lpthread']
+								getFullLibName('FuSeBMC_TCGen', FuSeBMCParams.arch, isConcurrency),'-lm','-lpthread']
 		for func in stdCFuncsLst:
 			compile_tcgen_lst.append('-D ' + func + '='+func+'_XXXX')
 		runWithTimeoutEnabled(' '.join(compile_tcgen_lst))
@@ -1017,17 +1094,17 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 		#os.environ[fuSeBMC_run_id+'_gcnt'] = str(goals_count)
 		
 		fusebmcStageParam = ''
-		fuzzTimeout = FuSeBMCFuzzerLib_COVERBRANCHES_TIMEOUT
-		if FuSeBMCFuzzerLib_COVERBRANCHES_SELECTIVE_INPUTS_ENABLED and \
+		fuzzTimeout = FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_TIMEOUT
+		if FuSeBMCParams.COVERBRANCHES_SELECTIVE_INPUTS_ENABLED and \
 			selectiveInputsLst is not None and len(selectiveInputsLst)>0:
 				if afl_min_length < 256 : afl_min_length = 256
-				fuzzTimeout += FuSeBMCFuzzerLib_COVERBRANCHES_SELECTIVE_INPUTS_TIME_INCREMENT
+				fuzzTimeout += FuSeBMCParams.COVERBRANCHES_SELECTIVE_INPUTS_TIME_INCREMENT
 				fusebmcStageParam = '-F ' + str(FuSeBMCFuzzerLib_COVERBRANCHES_SELECTIVE_INPUTS_ITERATIONS)
-		elif(COVERBRANCHES_HANDLE_INFINITE_WHILE_LOOP_ENABLED and infinteWhileNum > 0):
+		elif(FuSeBMCParams.COVERBRANCHES_HANDLE_INFINITE_WHILE_LOOP_ENABLED and infinteWhileNum > 0):
 			selectiveInputsLst = [str(i) for i in range(1,18)]
 			writeSelectiveInputsLstToFile()
 			if afl_min_length < 256 : afl_min_length = 256
-			fuzzTimeout += FuSeBMCFuzzerLib_COVERBRANCHES_INFINITE_WHILE_TIME_INCREMENT
+			fuzzTimeout += FuSeBMCParams.COVERBRANCHES_INFINITE_WHILE_TIME_INCREMENT
 			fusebmcStageParam = '-F ' + str(FuSeBMCFuzzerLib_COVERBRANCHES_FUSEBMC_STAGE_ITERATION_INFINITE_WHILE)
 		
 		#FusEBMC_CONST:
@@ -1052,7 +1129,8 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 			'--', afl_fuzzer_bin])
 		#print('afl_command:', afl_command)
 		#exit(0)
-		runWithTimeoutEnabled(afl_command, WRAPPER_Output_Dir,FuSeBMCProcessName.Afl_fuzz)
+		sys.stdout.flush()
+		runWithTimeoutEnabled(afl_command, FuSeBMCParams.WRAPPER_Output_Dir,FuSeBMCProcessName.Afl_fuzz)
 	
 		if os.path.isfile(afl_result_file):
 			with open(afl_result_file,'r') as f:
@@ -1076,6 +1154,7 @@ def RunAFLForCoverBranches(instrumented_afl_file):
 		return None
 
 def RunAFLForCoverBranches_Run2():
+	global FuSeBMCFuzzerLib_CoverBranches_Input_Covered_Goals_File ,FuSeBMCFuzzerLib_CoverBranches_Output_Covered_Goals_File
 	global lstFuzzerSeeds2
 	global lstFuSeBMC_GoalTracerGoals, lstFuSeBMC_FuzzerGoals
 	global FuSeBMCFuzzerLib_CoverBranches_Max_Testcase_Size_Btyes
@@ -1083,12 +1162,12 @@ def RunAFLForCoverBranches_Run2():
 	
 	RemoveFileIfExists(FuSeBMCFuzzerLib_CoverBranches_Output_Covered_Goals_File)
 	lstFuSeBMC_FuzzerGoals_Run2 = []
-	FuSeBMCFuzzerLib_CoverBranches_Seed2_Dir = os.path.abspath(os.path.join(WRAPPER_Output_Dir, 'seeds2'))
+	FuSeBMCFuzzerLib_CoverBranches_Seed2_Dir = os.path.abspath(os.path.join(FuSeBMCParams.WRAPPER_Output_Dir, 'seeds2'))
 	MakeFolderEmptyORCreate(FuSeBMCFuzzerLib_CoverBranches_Seed2_Dir)
 	l_seed_dir = FuSeBMCFuzzerLib_CoverBranches_Seed2_Dir
 	for goal_id, assump_lst in lstFuzzerSeeds2:
 		seed_filename = os.path.join(FuSeBMCFuzzerLib_CoverBranches_Seed2_Dir,'s_'+str(goal_id)+'.bin')
-		testcaseSize = WriteTestcaseInSeedFile(assump_lst,seed_filename,arch)
+		testcaseSize = WriteTestcaseInSeedFile(assump_lst,seed_filename,FuSeBMCParams.arch)
 		if(testcaseSize > 0 and testcaseSize > FuSeBMCFuzzerLib_CoverBranches_Max_Testcase_Size_Btyes):
 			FuSeBMCFuzzerLib_CoverBranches_Max_Testcase_Size_Btyes = testcaseSize
 	afl_min_length = FuSeBMCFuzzerLib_CoverBranches_Max_Testcase_Size_Btyes
@@ -1099,7 +1178,7 @@ def RunAFLForCoverBranches_Run2():
 		IsTimeOut(False)
 		print('   remaining_time_s=', remaining_time_s, 'Second(s)')
 		print('    afl_min_length=', afl_min_length, ' Byte(s)')
-		print('CTRL+C to Stop .......')
+		print('CTRL+C to Stop .......');sys.stdout.flush()
 	diff = FuSeBMCFuzzerLib_COVERBRANCHES_RUN2_SEEDS_NUM_MIN - len(lstFuzzerSeeds2)
 	if diff > 0:
 		for i in range(0,diff):
@@ -1108,7 +1187,7 @@ def RunAFLForCoverBranches_Run2():
 			WriteListInSeedFile(l, seed_filename, 1, True)
 
 	try:
-		afl_fuzzer_bin = os.path.abspath(WRAPPER_Output_Dir+'/afl.exe')
+		afl_fuzzer_bin = os.path.abspath(FuSeBMCParams.WRAPPER_Output_Dir+'/afl.exe')
 		lstGoalsFuzzerInput = [gl for gl in lstFuSeBMC_GoalTracerGoals]
 		for gl in lstFuSeBMC_FuzzerGoals: 
 			if gl not in lstGoalsFuzzerInput: lstGoalsFuzzerInput.append(gl)
@@ -1119,15 +1198,18 @@ def RunAFLForCoverBranches_Run2():
 		os.environ['AFL_NO_UI']='1'
 		
 		fusebmcStageParam = ''
-		if FuSeBMCFuzzerLib_COVERBRANCHES_SELECTIVE_INPUTS_ENABLED and \
+		if FuSeBMCParams.COVERBRANCHES_SELECTIVE_INPUTS_ENABLED and \
 			selectiveInputsLst is not None and len(selectiveInputsLst)>0:
 				if afl_min_length < 256 : afl_min_length = 256
 				fusebmcStageParam = '-F ' + str(FuSeBMCFuzzerLib_COVERBRANCHES_SELECTIVE_INPUTS_ITERATIONS)
-		elif(COVERBRANCHES_HANDLE_INFINITE_WHILE_LOOP_ENABLED and infinteWhileNum > 0):
+		elif(FuSeBMCParams.COVERBRANCHES_HANDLE_INFINITE_WHILE_LOOP_ENABLED and infinteWhileNum > 0):
 			if afl_min_length < 256 : afl_min_length = 256
 			fusebmcStageParam = '-F ' + str(FuSeBMCFuzzerLib_COVERBRANCHES_FUSEBMC_STAGE_ITERATION_INFINITE_WHILE)
 
-		runWithoutTimeoutEnabled(' '.join([ AFL_HOME_PATH + '/afl-fuzz',
+		fuzzTimeout = FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_TIMEOUT_2
+		runWithoutTimeoutEnabled(' '.join([
+			'timeout' ,'--signal=SIGTERM', '--kill-after=10s', str(fuzzTimeout),
+			AFL_HOME_PATH + '/afl-fuzz',
 			#'-n',
 			'-Z','-A','2',
 			'-l',str(afl_min_length),'-D' , fuSeBMC_run_id,
@@ -1138,8 +1220,8 @@ def RunAFLForCoverBranches_Run2():
 			'-i', l_seed_dir,'-o' ,'./FuSeBMCFuzzerOutput2',
 			'-m', FuSeBMCFuzzerLib_COVERBRANCHES_FUZZED_APP_MEM_LIMIT,
 			'-t',FuSeBMCFuzzerLib_COVERBRANCHES_FUZZED_APP_TIMEOUT,
-			'--', afl_fuzzer_bin]),WRAPPER_Output_Dir)
-		if is_ctrl_c: raise KeyboardInterrupt()
+			'--', afl_fuzzer_bin]),FuSeBMCParams.WRAPPER_Output_Dir)
+		if FuSeBMCParams.is_ctrl_c: raise KeyboardInterrupt()
 	
 	except KeyboardInterrupt as kb_ex:
 		lstFuSeBMC_FuzzerGoals_Total_Run2 = GetGoalListFromFile(FuSeBMCFuzzerLib_CoverBranches_Output_Covered_Goals_File)
@@ -1154,11 +1236,11 @@ def RunAFLForErrorCall():
 	global current_process_name
 	global stdCFuncsLst, isConcurrency
 	
-	afl_fuzzer_src = WRAPPER_Output_Dir+'/instrumented_afl.c'
-	afl_fuzzer_bin = os.path.abspath(WRAPPER_Output_Dir+'/afl.exe')
-	fuSeBMC_Fuzzer_testcase = WRAPPER_Output_Dir + '/test-suite/FuSeBMC_Fuzzer_testcase.xml'
+	afl_fuzzer_src = FuSeBMCParams.WRAPPER_Output_Dir+'/instrumented_afl.c'
+	afl_fuzzer_bin = os.path.abspath(FuSeBMCParams.WRAPPER_Output_Dir+'/afl.exe')
+	fuSeBMC_Fuzzer_testcase = FuSeBMCParams.WRAPPER_Output_Dir + '/test-suite/FuSeBMC_Fuzzer_testcase.xml'
 	try:
-		seed_dir = WRAPPER_Output_Dir + '/seeds/'
+		seed_dir = FuSeBMCParams.WRAPPER_Output_Dir + '/seeds/'
 		MakeFolderEmptyORCreate(seed_dir)
 		with open(afl_fuzzer_src,'w') as fout:
 			fout.write('unsigned int fuSeBMC_category = 1 ;\n')
@@ -1166,7 +1248,7 @@ def RunAFLForErrorCall():
 			fout.write('extern char * fuSeBMC_bitset_arr;\n')
 			fout.write('extern void fuSeBMC_init();\n')
 			fout.write('extern void fuSeBMC_reach_error();\n')
-			with open (INSTRUMENT_Output_File,'r') as fin:
+			with open (FuSeBMCParams.INSTRUMENT_Output_File,'r') as fin:
 				for line in fin:
 					if line == 'fuSeBMC_init:;\n':
 						line = 'fuSeBMC_init();\n'
@@ -1178,7 +1260,7 @@ def RunAFLForErrorCall():
 		#print('    ','Starting Instrumentation for Fuzzing ...')
 		#paramHandleInfiniteWhileLoop = ''
 		#paramInfinteWhileLoopLimit = ''
-		#if ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED:
+		#if FuSeBMCParams.ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED:
 		#	paramHandleInfiniteWhileLoop = '--handle-infinite-while-loop'
 		#	paramInfinteWhileLoopLimit = str(ERRORCALL_INFINITE_WHILE_LOOP_LIMIT)
 			
@@ -1193,18 +1275,18 @@ def RunAFLForErrorCall():
 		#	f.write('unsigned int fuSeBMC_category = 1;\n');
 		#	f.write('char * fuSeBMC_run_id = "'+fuSeBMC_run_id+'";\n')
 		
-		gccArch = '-m' + str(arch)
+		gccArch = '-m' + str(FuSeBMCParams.arch)
 		wrapperHomeDir = os.path.dirname(__file__)
-		seedGenExe = os.path.abspath(WRAPPER_Output_Dir+'/seedGenExe.exe')
+		seedGenExe = os.path.abspath(FuSeBMCParams.WRAPPER_Output_Dir+'/seedGenExe.exe')
 		print('    ','Compiling FuSeBMC_SeedGen ...')
 		compille_seedGen_lst = [FuSeBMCFuzzerLib_ERRORCALL_SEEDGEN_CC, FuSeBMCFuzzerLib_ERRORCALL_SEEDGEN_CC_PARAMS,
 									'-std=gnu11',
 									'-D abort=fuSeBMC_abort_prog',
 									#'-D read=fuSeBMC_read',
 									#'-D write=fuSeBMC_write',
-									'-I'+os.path.dirname(benchmark),gccArch,'-Wno-attributes','-D__alias__(x)=', '-o',seedGenExe,
+									'-I'+os.path.dirname(FuSeBMCParams.benchmark),gccArch,'-Wno-attributes','-D__alias__(x)=', '-o',seedGenExe,
 							'-L'+wrapperHomeDir+'/FuSeBMC_SeedGenLib/', afl_fuzzer_src,
-							'-lFuSeBMC_SeedGenLib_'+str(arch),'-lm','-lpthread']
+							'-lFuSeBMC_SeedGenLib_'+str(FuSeBMCParams.arch),'-lm','-lpthread']
 		for func in stdCFuncsLst:
 			compille_seedGen_lst.append('-D ' + func + '='+func+'_XXXX')
 		runWithTimeoutEnabled(' '.join(compille_seedGen_lst))
@@ -1213,15 +1295,15 @@ def RunAFLForErrorCall():
 		if(seedGenExeOK):
 			print('    ','Executing FuSeBMC_SeedGen ...')
 			current_process_name = FuSeBMCProcessName.SeedGen
-			for _ in range(0,FuSeBMCFuzzerLib_ERRORCALL_SEEDGEN_SEEDS_NUM):
-				runWithTimeoutEnabled(' '.join(['timeout', '-k','2s','5',seedGenExe]), WRAPPER_Output_Dir)
+			for _ in range(0,FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_SEEDGEN_SEEDS_NUM):
+				runWithTimeoutEnabled(' '.join(['timeout', '-k','2s','5',seedGenExe]), FuSeBMCParams.WRAPPER_Output_Dir)
 			current_process_name = ''
 			
 			#maxTestcaseSize = 0
-			if FuSeBMCFuzzerLib_ERRORCALL_USE_SEED_FROM_ESBMC1  and lstFuzzerSeeds is not None:
+			if FuSeBMCFuzzerLib_ERRORCALL_USE_SEED_FROM_ESBMC1 and lstFuzzerSeeds is not None:
 				for (tc_name,assump_lst) in lstFuzzerSeeds:
 					seed_filename = os.path.join(seed_dir,tc_name+'.bin')
-					_ = WriteTestcaseInSeedFile(assump_lst,seed_filename,arch)
+					_ = WriteTestcaseInSeedFile(assump_lst,seed_filename,FuSeBMCParams.arch)
 					#if testcaseSize > maxTestcaseSize: maxTestcaseSize = testcaseSize
 				lstFuzzerSeeds = []
 			
@@ -1281,19 +1363,19 @@ def RunAFLForErrorCall():
 									'-D abort=fuSeBMC_abort_prog',
 									#'-D read=fuSeBMC_read',
 									#'-D write=fuSeBMC_write',
-									'-I'+os.path.dirname(benchmark),
-									'-m'+str(arch), afl_fuzzer_src, '-o',afl_fuzzer_bin,
-									'-L./FuSeBMC_FuzzerLib/',getFullLibName('FuSeBMC_FuzzerLib',arch, isConcurrency),'-lm','-lpthread']
+									'-I'+os.path.dirname(FuSeBMCParams.benchmark),
+									'-m'+str(FuSeBMCParams.arch), afl_fuzzer_src, '-o',afl_fuzzer_bin,
+									'-L./FuSeBMC_FuzzerLib/',getFullLibName('FuSeBMC_FuzzerLib',FuSeBMCParams.arch, isConcurrency),'-lm','-lpthread']
 		for func in stdCFuncsLst:
 			compile_afl_lst.append('-D ' + func + '='+func+'_XXXX')
 		runWithTimeoutEnabled(' '.join(compile_afl_lst))
 		if not os.path.isfile(afl_fuzzer_bin): raise Exception (afl_fuzzer_bin + ' Not found.')
 		
-		tcgen_bin = os.path.abspath(WRAPPER_Output_Dir+'/tcgen.exe')
+		tcgen_bin = os.path.abspath(FuSeBMCParams.WRAPPER_Output_Dir+'/tcgen.exe')
 		compile_tcgen_lst = [FuSeBMCFuzzerLib_TESTCASE_GEN_CC, FuSeBMCFuzzerLib_TESTCASE_GEN_CC_PARAMS,
-									'-D abort=fuSeBMC_abort_prog', '-I'+os.path.dirname(benchmark),
-									'-m'+str(arch), afl_fuzzer_src, '-o',tcgen_bin,
-									'-L./FuSeBMC_TCGen/',getFullLibName('FuSeBMC_TCGen' , arch, isConcurrency),'-lm','-lpthread']
+									'-D abort=fuSeBMC_abort_prog', '-I'+os.path.dirname(FuSeBMCParams.benchmark),
+									'-m'+str(FuSeBMCParams.arch), afl_fuzzer_src, '-o',tcgen_bin,
+									'-L./FuSeBMC_TCGen/',getFullLibName('FuSeBMC_TCGen' , FuSeBMCParams.arch, isConcurrency),'-lm','-lpthread']
 		for func in stdCFuncsLst:
 			compile_tcgen_lst.append('-D ' + func + '='+func+'_XXXX')
 		runWithTimeoutEnabled(' '.join(compile_tcgen_lst))
@@ -1307,16 +1389,16 @@ def RunAFLForErrorCall():
 		
 		
 		fusebmcStageParam = ''
-		fuzzTimeout = FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT
-		if FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_ENABLED and \
+		fuzzTimeout = FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT
+		if FuSeBMCParams.ERRORCALL_SELECTIVE_INPUTS_ENABLED and \
 			selectiveInputsLst is not None and len(selectiveInputsLst)>0:
 				if seedMaxSize < 512 : seedMaxSize = 512
-				fuzzTimeout += FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_TIME_INCREMENT
+				fuzzTimeout += FuSeBMCParams.ERRORCALL_SELECTIVE_INPUTS_TIME_INCREMENT
 				fusebmcStage = FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_ITERATIONS
 				if isSelectiveInputsFromMain : fusebmcStage += 1000
 				fusebmcStageParam = '-F ' + str(fusebmcStage)
-		elif(ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED and infinteWhileNum > 0):
-			fuzzTimeout += FuSeBMCFuzzerLib_ERRORCALL_INFINITE_WHILE_TIME_INCREMENT
+		elif(FuSeBMCParams.ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED and infinteWhileNum > 0):
+			fuzzTimeout += FuSeBMCParams.ERRORCALL_INFINITE_WHILE_TIME_INCREMENT
 			selectiveInputsLst = [str(i) for i in range(1,18)]
 			writeSelectiveInputsLstToFile()
 			fusebmcStageParam = '-F ' + str(FuSeBMCFuzzerLib_ERRORCALL_FUSEBMC_STAGE_ITERATION_INFINITE_WHILE)
@@ -1338,7 +1420,7 @@ def RunAFLForErrorCall():
 									'-i', seed_dir,'-o' ,'./FuSeBMCFuzzerOutput',
 									'-m', fuzzed_app_memlimit,
 									'-t',fuzzed_app_timeout,
-									'--', afl_fuzzer_bin]),WRAPPER_Output_Dir)
+									'--', afl_fuzzer_bin]),FuSeBMCParams.WRAPPER_Output_Dir)
 		if os.path.isfile(fuSeBMC_Fuzzer_testcase):
 			print('    ','Testcase is generated.','\n')
 			#
@@ -1350,26 +1432,26 @@ def RunAFLForErrorCall_Run2():
 	global lstFuzzerSeeds,infinteWhileNum, selectiveInputsLst
 	global stdCFuncsLst, isConcurrency
 	
-	afl_fuzzer_bin = os.path.abspath(WRAPPER_Output_Dir+'/afl.exe')
+	afl_fuzzer_bin = os.path.abspath(FuSeBMCParams.WRAPPER_Output_Dir+'/afl.exe')
 	if not os.path.isfile(afl_fuzzer_bin):
 		print('File not found:',afl_fuzzer_bin)
 		return
-	fuSeBMC_Fuzzer_testcase = WRAPPER_Output_Dir + '/test-suite/FuSeBMC_Fuzzer_testcase.xml'
+	fuSeBMC_Fuzzer_testcase = FuSeBMCParams.WRAPPER_Output_Dir + '/test-suite/FuSeBMC_Fuzzer_testcase.xml'
 	if os.path.isfile(fuSeBMC_Fuzzer_testcase):
 		if FuSeBMCFuzzerLib_ERRORCALL_FORCE_RUN2:
 			print('  \'FuSeBMC_Fuzzer_testcase.xml\' will be copied to \'FuSeBMC_Fuzzer_testcase_1.xml\' ')
-			tc_dest = WRAPPER_Output_Dir + '/test-suite/FuSeBMC_Fuzzer_testcase_1.xml'
+			tc_dest = FuSeBMCParams.WRAPPER_Output_Dir + '/test-suite/FuSeBMC_Fuzzer_testcase_1.xml'
 			shutil.move(fuSeBMC_Fuzzer_testcase, tc_dest)
 		else:
 			return
 
-	seed_dir = WRAPPER_Output_Dir + '/seeds2/'
+	seed_dir = FuSeBMCParams.WRAPPER_Output_Dir + '/seeds2/'
 	MakeFolderEmptyORCreate(seed_dir)
 	maxTestcaseSize = 0
 	if lstFuzzerSeeds is not None:
 		for (tc_name,assump_lst) in lstFuzzerSeeds:
 			seed_filename = os.path.join(seed_dir,tc_name+'.bin')
-			testcaseSize = WriteTestcaseInSeedFile(assump_lst,seed_filename,arch)
+			testcaseSize = WriteTestcaseInSeedFile(assump_lst,seed_filename,FuSeBMCParams.arch)
 			if testcaseSize > maxTestcaseSize: maxTestcaseSize = testcaseSize
 	if maxTestcaseSize == 0 :
 		maxTestcaseSize = 32
@@ -1390,11 +1472,11 @@ def RunAFLForErrorCall_Run2():
 		os.environ["AFL_SKIP_CRASHES"] = "1"
 		os.environ["AFL_FAST_CAL"] = "1"
 		fusebmcStageParam = ''
-		if FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_ENABLED and \
+		if FuSeBMCParams.ERRORCALL_SELECTIVE_INPUTS_ENABLED and \
 			selectiveInputsLst is not None and len(selectiveInputsLst)>0:
 				if afl_min_length < 256 : afl_min_length = 256
 				fusebmcStageParam = '-F ' + str(FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_ITERATIONS)
-		elif(ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED and infinteWhileNum > 0):
+		elif(FuSeBMCParams.ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED and infinteWhileNum > 0):
 			if afl_min_length < 256 : afl_min_length = 256
 			fusebmcStageParam = '-F ' + str(FuSeBMCFuzzerLib_ERRORCALL_FUSEBMC_STAGE_ITERATION_INFINITE_WHILE)
 		
@@ -1402,8 +1484,8 @@ def RunAFLForErrorCall_Run2():
 		fuzzed_app_timeout = FuSeBMCFuzzerLib_ERRORCALL_FUZZED_APP_TIMEOUT if (isConcurrency == False  and len(stdCFuncsLst) == 0) else '250+'
 		fuzzed_app_memlimit = FuSeBMCFuzzerLib_ERRORCALL_FUZZED_APP_MEM_LIMIT if (isConcurrency == False and len(stdCFuncsLst) == 0) else '2000'
 		fuSeBMC_max_fuzz_length = '' if (isConcurrency == False and len(stdCFuncsLst) == 0) else '-L 5000'
-		
-		runWithoutTimeoutEnabled(' '.join([
+		fuzzTimeout = FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT_2
+		runWithoutTimeoutEnabled(' '.join(['timeout', '-k','2s', str(fuzzTimeout),
 									AFL_HOME_PATH + '/afl-fuzz',
 									#'-n',
 									'-Z','-A','1','-l',str(afl_min_length),fuSeBMC_max_fuzz_length, '-D' , fuSeBMC_run_id,
@@ -1413,7 +1495,7 @@ def RunAFLForErrorCall_Run2():
 									'-i', seed_dir,'-o' ,'./FuSeBMCFuzzerOutput2/',
 									'-m', fuzzed_app_memlimit,
 									'-t',fuzzed_app_timeout,
-									'--', afl_fuzzer_bin]),WRAPPER_Output_Dir)
+									'--', afl_fuzzer_bin]),FuSeBMCParams.WRAPPER_Output_Dir)
 		if os.path.isfile(fuSeBMC_Fuzzer_testcase):
 			print('   ','Testcase is generated.','\n')
 	except KeyboardInterrupt as kbe: pass
@@ -1557,11 +1639,11 @@ def getGlobalDepthOfGoalInfo(p_goalInfo):
 	
 def sortLstGoalsToWorkOn(p_lst):
 	for ginfo in p_lst:
-		ginfo.correspondingDepth =  ginfo.globalDepth if FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH else ginfo.depth
+		ginfo.correspondingDepth =  ginfo.globalDepth if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH else ginfo.depth
 	start = 0
 	stop = len(p_lst)-1
 	isSwap = True
-	if goalSorting == GoalSorting.DEPTH_THEN_TYPE:
+	if FuSeBMCParams.goalSorting == GoalSorting.DEPTH_THEN_TYPE:
 		while stop > start and isSwap == True:
 			isSwap = False
 			for i in range(start, stop):
@@ -1581,7 +1663,7 @@ def sortLstGoalsToWorkOn(p_lst):
 					((current.correspondingDepth == next_e.correspondingDepth) and (current.goalType > next_e.goalType))):
 						p_lst[i-1] = next_e; p_lst[i] = current; isSwap = True
 			start = start + 1
-	elif goalSorting == GoalSorting.TYPE_THEN_DEPTH:
+	elif FuSeBMCParams.goalSorting == GoalSorting.TYPE_THEN_DEPTH:
 		while stop > start and isSwap == True:
 			isSwap = False
 			for i in range(start, stop):
@@ -1702,14 +1784,14 @@ def getLstGoalsToWorkOn(p_rootXML):
 		for g in afterLoopGoalsLst: l_lstGoalsToWorkOn.append(GoalInfo(g, GoalType.AFTER_LOOP, goalDepthDict.get(g, -1),-1,goalFuncDict.get(g,-1)))
 		for g in emptyElseGoalsLst: l_lstGoalsToWorkOn.append(GoalInfo(g, GoalType.EMPTY_ELSE, goalDepthDict.get(g, -1),-1,goalFuncDict.get(g,-1)))
 		lst_len = len(l_lstGoalsToWorkOn)
-		if FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH and \
-			(goalSorting == GoalSorting.DEPTH_THEN_TYPE or goalSorting ==GoalSorting.TYPE_THEN_DEPTH):
+		if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH and \
+			(FuSeBMCParams.goalSorting == GoalSorting.DEPTH_THEN_TYPE or FuSeBMCParams.goalSorting ==GoalSorting.TYPE_THEN_DEPTH):
 			for i in range(0, lst_len):
 				l_lstGoalsToWorkOn[i].globalDepth = getGlobalDepthOfGoalInfo(l_lstGoalsToWorkOn[i])
 				
 		# BubbleSort
 		l_lstGoalsToWorkOn = sortLstGoalsToWorkOn(l_lstGoalsToWorkOn)
-		if goalSorting == GoalSorting.DEPTH_THEN_TYPE:
+		if FuSeBMCParams.goalSorting == GoalSorting.DEPTH_THEN_TYPE:
 			# Applay IF at First & EmptyElse at End
 			if goalSorting_IF_first or goalSorting_EMPTYELSE_last:
 				tmp_if_lst, tmp_emptyElse_lst, tmp_afterLoop_lst,tmp_endOfFun_lst, rest_lst = [], [], [] , [], []
@@ -1726,7 +1808,7 @@ def getLstGoalsToWorkOn(p_rootXML):
 			pass
 
 		#if IS_DEBUG : assert (len(l_lstGoalsToWorkOn) == goals_count)
-		if SHOW_ME_OUTPUT:
+		if FuSeBMCParams.SHOW_ME_OUTPUT:
 			print('ifGoalsLst',ifGoalsLst)
 			print('compoundGoalsLst',compoundGoalsLst)
 			print('loopGoalsLst',loopGoalsLst)
@@ -1786,15 +1868,15 @@ def AddToFuzzerSeedsLst_ErrorCall(seed_name,inst_assumptions):
 
 def AddToFuzzerSeedsLst(goal_id, inst_assumptions):
 	global lstFuzzerSeeds
-	if FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED \
+	if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED \
 			and FuSeBMCFuzzerLib_CoverBranches_Done == False:
 		for _,lstAssumption_loop in lstFuzzerSeeds:
 			if isAssumptionListsEqual(lstAssumption_loop,inst_assumptions): return
 		lstFuzzerSeeds.append((goal_id,inst_assumptions))
 		print('    Add to Seeds list ..., We have',len(lstFuzzerSeeds),'list(s)..')
-	elif FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED \
+	elif FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED \
 			and FuSeBMCFuzzerLib_CoverBranches_Done \
-			and FuSeBMCFuzzerLib_COVERBRANCHES_RUN2_ENABLED:
+			and FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_RUN2_ENABLED:
 		global lstFuzzerSeeds2
 		for _,lstAssumption_loop in lstFuzzerSeeds:
 			if isAssumptionListsEqual(lstAssumption_loop,inst_assumptions): return
@@ -1819,7 +1901,7 @@ def runGoalTracer(instrumentedTracerExec,inst_assumptions,goals_covered_file,goa
 	lstGoalsInFile = []
 	retVal = -1
 	RemoveFileIfExists(goals_covered_file)
-	RemoveFileIfExists(WRAPPER_Output_Dir + '/tracer_testcase.txt')
+	RemoveFileIfExists(FuSeBMCParams.WRAPPER_Output_Dir + '/tracer_testcase.txt')
 	proc_inst = None
 	try:
 		input_lst = [nonDeterministicCall.value for nonDeterministicCall in inst_assumptions]
@@ -1829,7 +1911,7 @@ def runGoalTracer(instrumentedTracerExec,inst_assumptions,goals_covered_file,goa
 		current_process_name = FuSeBMCProcessName.Tracer_EXE
 		process = subprocess.Popen(['timeout' ,'--preserve-status','15s',instrumentedTracerExec],
 								stdin=subprocess.PIPE if input_str else None,
-								stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=False, cwd=WRAPPER_Output_Dir,preexec_fn=limit_virtual_memory)
+								stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=False, cwd=FuSeBMCParams.WRAPPER_Output_Dir,preexec_fn=limit_virtual_memory)
 		current_process_name = ''
 		if input_str and not isinstance(input_str, bytes):
 			input_str = input_str.encode()
@@ -1861,7 +1943,7 @@ def runGoalTracer(instrumentedTracerExec,inst_assumptions,goals_covered_file,goa
 def writeSelectiveInputsLstToFile():
 	global selectiveInputsLst, isSelectiveInputsFromMain
 	if selectiveInputsLst is not None and len(selectiveInputsLst) > 0:
-		with open (WRAPPER_Output_Dir+'/selective_inputs.txt', 'w') as f:
+		with open (FuSeBMCParams.WRAPPER_Output_Dir+'/selective_inputs.txt', 'w') as f:
 			if isSelectiveInputsFromMain:
 				f.write('99\n')
 			else:
@@ -1873,24 +1955,23 @@ def getSingleValueFromFuSeBMCFuzzer(p_prop):
 	'''
 	Return tuple (singleValueFromFuSeBMCFuzzer,maxLengthOfTestcaseFromFuSeBMCFuzzer)
 	'''
-	global TestSuite_Dir
 	singleValueFromFuSeBMCFuzzer = 0
 	maxLengthOfTestcaseFromFuSeBMCFuzzer = 0
 	try:
 		if(p_prop == Property.cover_branches):
 			if FuSeBMCFuzzerLib_COVERBRANCHES_EXTRACT_SINGLEVAL_MAXLEN_FROM_TC:
-				lsXML_files = glob.glob(TestSuite_Dir + '/FUZ_*.xml')
+				lsXML_files = glob.glob(FuSeBMCParams.TestSuite_Dir + '/FUZ_*.xml')
 			else:
 				return (singleValueFromFuSeBMCFuzzer,maxLengthOfTestcaseFromFuSeBMCFuzzer)
 		elif(p_prop == Property.cover_error_call):
 			if FuSeBMCFuzzerLib_ERRORCALL_EXTRACT_SINGLEVAL_MAXLEN_FROM_TC:
 				lsXML_files = []
-				lsXML_files.extend(glob.glob(TestSuite_Dir + '/FUZ_*.xml'))
-				lsXML_files.extend(glob.glob(TestSuite_Dir + '/FuSeBMC_Fuzzer_*.xml'))
+				lsXML_files.extend(glob.glob(FuSeBMCParams.TestSuite_Dir + '/FUZ_*.xml'))
+				lsXML_files.extend(glob.glob(FuSeBMCParams.TestSuite_Dir + '/FuSeBMC_Fuzzer_*.xml'))
 			else:
 				return (singleValueFromFuSeBMCFuzzer,maxLengthOfTestcaseFromFuSeBMCFuzzer)
 		else:
-			lsXML_files = glob.glob(TestSuite_Dir + '/FUZ_*.xml')
+			lsXML_files = glob.glob(FuSeBMCParams.TestSuite_Dir + '/FUZ_*.xml')
 		if lsXML_files is None or len(lsXML_files) == 0 :
 			return (singleValueFromFuSeBMCFuzzer,maxLengthOfTestcaseFromFuSeBMCFuzzer)
 		for xml_f in lsXML_files:
@@ -1914,7 +1995,6 @@ def getSingleValueFromFuSeBMCFuzzer(p_prop):
 	return (singleValueFromFuSeBMCFuzzer,maxLengthOfTestcaseFromFuSeBMCFuzzer)
 
 def verify(strat, prop, fp_mode):
-	global is_ctrl_c
 	global remaining_time_s
 	global hasInputInTestcase
 	global lastInputInTestcaseCount 
@@ -1924,13 +2004,14 @@ def verify(strat, prop, fp_mode):
 	global infinteWhileNum, isConcurrency
 	global selectiveInputsLst, isSelectiveInputsFromMain
 	global stdCFuncsLst
+	global feature
 	
 	#sglobal MUST_APPLY_TIME_PER_GOAL
 	lastInputInTestcaseCount = 5 # default
 	goal_id=0
 	goal_witness_file_full=''
 	inst_assumptions=[]
-	if(prop == Property.cover_branches):
+	if prop == Property.cover_branches:
 		numOfESBMCRun = 0
 		try:
 			global lstFuSeBMC_GoalTracerGoals, lstFuSeBMC_FuzzerGoals, callGraph,mainFuncID
@@ -1939,41 +2020,51 @@ def verify(strat, prop, fp_mode):
 			paramAddGoalAtEndOfFunc='--add-goal-at-end-of-func'
 			paramExportGoalInfo = ''
 			paramGlobalDepth = ''
-			if FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH: paramGlobalDepth = '--export-call-graph'
+			if FuSeBMCParams.ML == Feature.PredicateParams or \
+				FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH:
+				paramGlobalDepth = '--export-call-graph'
 			
 			if MUST_APPLY_LIGHT_INSTRUMENT_FOR_BIG_FILES:
-				linesCountInSource = getLinesCountInFile(benchmark)
+				linesCountInSource = getLinesCountInFile(FuSeBMCParams.benchmark)
 				if linesCountInSource >= BIG_FILE_LINES_COUNT:
 					paramAddElse = ''
 					paramAddLabelAfterLoop=''
 					paramAddGoalAtEndOfFunc = ''
+			
+			if FuSeBMCParams.COVERBRANCHES_ADD_GOAL_END_FUNC : paramAddGoalAtEndOfFunc = ''
+			
 			addFuSeBMCFuncParam = ''
 			paramHandleInfiniteWhileLoop = ''
 			paramSelectiveInputs = ''
-			if COVERBRANCHES_HANDLE_INFINITE_WHILE_LOOP_ENABLED:
+			if FuSeBMCParams.ML == Feature.PredicateParams or \
+				FuSeBMCParams.COVERBRANCHES_HANDLE_INFINITE_WHILE_LOOP_ENABLED:
 				paramHandleInfiniteWhileLoop = '--handle-infinite-while-loop'
-			if FuSeBMCFuzzerLib_COVERBRANCHES_SELECTIVE_INPUTS_ENABLED:
+			if FuSeBMCParams.ML == Feature.PredicateParams or \
+				FuSeBMCParams.COVERBRANCHES_SELECTIVE_INPUTS_ENABLED:
 				paramSelectiveInputs = '--export-selective-inputs'
 			#paramHandleReturnInMain = ''
-			#if FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED : paramHandleReturnInMain = '--handle-return-in-main'
+			#if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED : paramHandleReturnInMain = '--handle-return-in-main'
 			if MAP2CHECK_COVERBRANCHES_ENABLED: addFuSeBMCFuncParam = '--add-FuSeBMC-func'
-			if goalSorting == GoalSorting.DEPTH_THEN_TYPE or goalSorting == GoalSorting.TYPE_THEN_DEPTH:
+			if FuSeBMCParams.ML == Feature.PredicateParams or \
+				FuSeBMCParams.goalSorting == GoalSorting.DEPTH_THEN_TYPE or \
+				FuSeBMCParams.goalSorting == GoalSorting.TYPE_THEN_DEPTH:
 				paramExportGoalInfo = '--export-goal-info'
-			infoFile = WRAPPER_Output_Dir + '/info.xml'
-			runWithTimeoutEnabled(' '.join([FUSEBMC_INSTRUMENT_EXE_PATH, '--input',benchmark ,'--output', INSTRUMENT_Output_File , 
-								'--goal-output-file',INSTRUMENT_Output_Goals_File, paramAddElse,'--add-labels', '--export-line-number-for-NonDetCalls',
+			infoFile = FuSeBMCParams.WRAPPER_Output_Dir + '/info.xml'
+			runWithTimeoutEnabled(' '.join([FUSEBMC_INSTRUMENT_EXE_PATH, '--input',FuSeBMCParams.benchmark ,'--output', FuSeBMCParams.INSTRUMENT_Output_File , 
+								'--goal-output-file',FuSeBMCParams.INSTRUMENT_Output_Goals_File, paramAddElse,'--add-labels', '--export-line-number-for-NonDetCalls',
 								paramExportGoalInfo,'--add-comment-in-func','fuSeBMC_init=main',
 								paramAddLabelAfterLoop, paramAddGoalAtEndOfFunc, addFuSeBMCFuncParam, paramGlobalDepth,
 								'--info-file', infoFile,
 								paramHandleInfiniteWhileLoop, paramSelectiveInputs,'--export-stdc-func','--check-concurrency',
-								'--compiler-args','-I'+os.path.dirname(benchmark)]))
+								'--extract-features' if FuSeBMCParams.ML == Feature.ExtractFeaturesOnly or FuSeBMCParams.ML == Feature.PredicateParams else '',
+								'--compiler-args','-I'+os.path.dirname(FuSeBMCParams.benchmark)]))
 			
 			#Without else + without label-after-loop but with goal at end of function
-			#run_without_output(' '.join([FUSEBMC_INSTRUMENT_EXE_PATH, '--input',benchmark ,'--output', INSTRUMENT_Output_File , 
-			#					  '--goal-output-file',INSTRUMENT_Output_Goals_File,'--add-labels','--add-goal-at-end-of-func',
-			#					  '--compiler-args', '-I'+os.path.dirname(benchmark)]))
-			if os.path.isfile(INSTRUMENT_Output_Goals_File):
-				with open(INSTRUMENT_Output_Goals_File, 'r') as f_goals_cnt:
+			#run_without_output(' '.join([FUSEBMC_INSTRUMENT_EXE_PATH, '--input',FuSeBMCParams.benchmark ,'--output', FuSeBMCParams.INSTRUMENT_Output_File , 
+			#					  '--goal-output-file',FuSeBMCParams.INSTRUMENT_Output_Goals_File,'--add-labels','--add-goal-at-end-of-func',
+			#					  '--compiler-args', '-I'+os.path.dirname(FuSeBMCParams.benchmark)]))
+			if os.path.isfile(FuSeBMCParams.INSTRUMENT_Output_Goals_File):
+				with open(FuSeBMCParams.INSTRUMENT_Output_Goals_File, 'r') as f_goals_cnt:
 					goals_count = int(f_goals_cnt.read())
 			
 			lstGoalsToWorkOn = None
@@ -1981,8 +2072,17 @@ def verify(strat, prop, fp_mode):
 			
 			if os.path.isfile(infoFile):
 				rootXML = ET.parse(infoFile).getroot()
+				if FuSeBMCParams.ML == Feature.ExtractFeaturesOnly or FuSeBMCParams.ML == Feature.PredicateParams:
+					feature = Feature()
+					feature.parseFromElement(rootXML)
+					feature.printOut()
+					if FuSeBMCParams.ML == Feature.PredicateParams:
+						from fusebmc_ml.Predictor import Predictor
+						predictor = Predictor(feature, Property.cover_branches)
+						predictor.predictParams(FuSeBMCParams.MLModel)
+				
 				lineNumberForNonDetCallsLst = parseRootXML_NonDetCalls(rootXML)
-				if FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH:
+				if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH:
 					funcDeclInfoLst = parseRootXML_FuncDeclInfo(rootXML)
 					if funcDeclInfoLst is not None:
 						callGraph = Graph()
@@ -2000,7 +2100,7 @@ def verify(strat, prop, fp_mode):
 								callGraph.add_edge(callerID, calleeID, depth)
 							if IS_DEBUG: callGraph.print_graph()
 							dijkstra(callGraph,callGraph.get_vertex(mainFuncID))
-				if FuSeBMCFuzzerLib_COVERBRANCHES_SELECTIVE_INPUTS_ENABLED:
+				if FuSeBMCParams.COVERBRANCHES_SELECTIVE_INPUTS_ENABLED:
 					selectiveInputsLst, isSelectiveInputsFromMain = parseRootXML_SelectiveInputs(rootXML)
 					writeSelectiveInputsLstToFile()
 					if IS_DEBUG:
@@ -2010,18 +2110,18 @@ def verify(strat, prop, fp_mode):
 				stdCFuncsLst = parseRootXML_StdCFuncs(rootXML)
 				if IS_DEBUG:
 					print('stdCFuncsLst',stdCFuncsLst)
-				if (goalSorting == GoalSorting.DEPTH_THEN_TYPE or goalSorting == GoalSorting.TYPE_THEN_DEPTH):
+				if (FuSeBMCParams.goalSorting == GoalSorting.DEPTH_THEN_TYPE or FuSeBMCParams.goalSorting == GoalSorting.TYPE_THEN_DEPTH):
 					lstGoalsToWorkOn = getLstGoalsToWorkOn(rootXML)
 					
 				infinteWhileNum = parseRootXML_InfinteWhileNum(rootXML)
-				#if(infinteWhileNum != 0): print('Infinte While Loops =',infinteWhileNum)
+				if(infinteWhileNum != 0): print('Infinte While Loops =',infinteWhileNum)
 				
 				isConcurrency = parseRootXML_Concurrency(rootXML)
-				#print('isConcurrency', isConcurrency)
+				print('isConcurrency', isConcurrency)
 				
 				del rootXML
 
-			if goalSorting == GoalSorting.SEQUENTIAL or lstGoalsToWorkOn is None:
+			if FuSeBMCParams.goalSorting == GoalSorting.SEQUENTIAL or lstGoalsToWorkOn is None:
 				lstGoalsToWorkOn = [GoalInfo(g, GoalType.NONE , -1) for g in range(1,goals_count+1)]
 			lstGoalsToWorkOnLen = len(lstGoalsToWorkOn)
 			if IS_DEBUG:
@@ -2029,44 +2129,44 @@ def verify(strat, prop, fp_mode):
 				for ginfo in lstGoalsToWorkOn: print(ginfo.toString())
 			IsTimeOut(True)
 			#check if FuSeBMC_inustrument worked
-			if not os.path.isfile(INSTRUMENT_Output_File):
+			if not os.path.isfile(FuSeBMCParams.INSTRUMENT_Output_File):
 				print("Cannot instrument the file.")
 				if IS_DEBUG:
 					print(TColors.FAIL,'Cannot instrument the file.',TColors.ENDC)
 					exit(0)
 				#return Result.unknown
-			if not os.path.isfile(INSTRUMENT_Output_Goals_File):
+			if not os.path.isfile(FuSeBMCParams.INSTRUMENT_Output_Goals_File):
 				print("Cannot instrument the file, goalFile cannot be found.")
 				if IS_DEBUG:
 					print(TColors.FAIL,'Cannot instrument the file, goalFile cannot be found.',TColors.ENDC)
 					exit(0)
 				#return Result.unknown
-			#with open(INSTRUMENT_Output_File, 'a') as f:
+			#with open(FuSeBMCParams.INSTRUMENT_Output_File, 'a') as f:
 			#	f.write('\nvoid my_assert(const char * a, const char * b, unsigned int c, const char * d){exit(0);}\n')
 
 			if MUST_COMPILE_INSTRUMENTED:
-				CompileFile(INSTRUMENT_Output_File,os.path.dirname(benchmark))
-			if FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
-				instrumentedAFL_src = WRAPPER_Output_Dir + '/instrumented_afl.c'
-				ReplaceGoalLabelWithFuseGoalCalledMethod(INSTRUMENT_Output_File, instrumentedAFL_src)
+				CompileFile(FuSeBMCParams.INSTRUMENT_Output_File,os.path.dirname(FuSeBMCParams.benchmark))
+			if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
+				instrumentedAFL_src = FuSeBMCParams.WRAPPER_Output_Dir + '/instrumented_afl.c'
+				ReplaceGoalLabelWithFuseGoalCalledMethod(FuSeBMCParams.INSTRUMENT_Output_File, instrumentedAFL_src)
 			goalTracerExecOK = False
-			if FuSeBMC_GoalTracer_ENABLED:
-				instrumentedTracer = WRAPPER_Output_Dir + '/instrumented_tracer.c'
-				instrumentedTracerExec = os.path.abspath(WRAPPER_Output_Dir + '/tracer.exe')
-				goals_covered_file = WRAPPER_Output_Dir + '/goals_covered.txt'
+			if FuSeBMCParams.FuSeBMC_GoalTracer_ENABLED:
+				instrumentedTracer = FuSeBMCParams.WRAPPER_Output_Dir + '/instrumented_tracer.c'
+				instrumentedTracerExec = os.path.abspath(FuSeBMCParams.WRAPPER_Output_Dir + '/tracer.exe')
+				goals_covered_file = FuSeBMCParams.WRAPPER_Output_Dir + '/goals_covered.txt'
 				wrapperHomeDir = os.path.dirname(__file__)
-				gccArch = '-m' + str(arch)
-				if not FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
-					ReplaceGoalLabelWithFuseGoalCalledMethod(INSTRUMENT_Output_File, instrumentedTracer)
+				gccArch = '-m' + str(FuSeBMCParams.arch)
+				if not FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
+					ReplaceGoalLabelWithFuseGoalCalledMethod(FuSeBMCParams.INSTRUMENT_Output_File, instrumentedTracer)
 				else:
 					instrumentedTracer = instrumentedAFL_src # the same file from fuzzer.
 				#-std=gnu11 -m32 -Wno-attributes -D__alias__(x)=
 				compile_tracer_lst = [FuSeBMC_GoalTracer_CC,FuSeBMC_GoalTracer_CC_PARAMS,
 											'-D abort=fuSeBMC_abort_prog',
-											'-I'+os.path.dirname(benchmark),
+											'-I'+os.path.dirname(FuSeBMCParams.benchmark),
 											'-std=gnu11',gccArch,'-Wno-attributes','-D__alias__(x)=', '-o',instrumentedTracerExec,
 											'-L'+wrapperHomeDir+'/FuSeBMC_GoalTracerLib/', instrumentedTracer,
-											'-lFuSeBMC_GoalTracerLib_'+str(arch),'-lm','-lpthread']
+											'-lFuSeBMC_GoalTracerLib_'+str(FuSeBMCParams.arch),'-lm','-lpthread']
 				for func in stdCFuncsLst:
 					compile_tracer_lst.append('-D ' + func + '='+func+'_XXXX')
 				runWithTimeoutEnabled(' '.join(compile_tracer_lst))
@@ -2093,26 +2193,26 @@ def verify(strat, prop, fp_mode):
 				goals_to_be_run_map2check.append(lstGoalsToWorkOn[-1].goal)
 	
 			print('\nRunning FuSeBMC for Cover-Branches:\n')
-			#if FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
+			#if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
 			#	instrumentedESBMC = WRAPPER_Output_Dir + '/instrumented_esbmc.c'
 			#	with open(instrumentedESBMC,'w') as fout:
 			#		fout.write('extern void fuSeBMC_return(int code){}\n')
-			#		with open(INSTRUMENT_Output_File,'r') as fin:
+			#		with open(FuSeBMCParams.INSTRUMENT_Output_File,'r') as fin:
 			#			for line in fin: fout.write(line)
 			#	if lineNumberForNonDetCallsLst is not None:
 			#		lineNumberForNonDetCallsLst = [(line_nr + 1,funcName) for (line_nr,funcName) in lineNumberForNonDetCallsLst] # icrease by 2 Line.
-			#else: instrumentedESBMC = INSTRUMENT_Output_File
-			instrumentedESBMC = INSTRUMENT_Output_File
+			#else: instrumentedESBMC = FuSeBMCParams.INSTRUMENT_Output_File
+			instrumentedESBMC = FuSeBMCParams.INSTRUMENT_Output_File
 
 			SourceCodeChecker.loadSourceFromFile(instrumentedESBMC)
 			linesInSource = len(SourceCodeChecker.__lines__)
 			if IS_DEBUG: print(TColors.OKGREEN,'Lines In source:',linesInSource,TColors.ENDC)
-			if SHOW_ME_OUTPUT: print('lineNumberForNonDetCallsLst','(line,funcName)',lineNumberForNonDetCallsLst)
+			if FuSeBMCParams.SHOW_ME_OUTPUT: print('lineNumberForNonDetCallsLst','(line,funcName)',lineNumberForNonDetCallsLst)
 			lstFuSeBMC_FuzzerGoals = []
 			## Starting Goals LOOP !!!
 			#for goalInfo in lstGoalsToWorkOn:
 			counter = 0
-			if MUST_APPLY_TIME_PER_GOAL : time_for_goal_max = int(time_out_s / 5)
+			if MUST_APPLY_TIME_PER_GOAL : time_for_goal_max = int(FuSeBMCParams.time_out_s / 5)
 			while len(lstGoalsToWorkOn) > 0:
 				counter += 1
 				goalInfo = lstGoalsToWorkOn.pop(0)
@@ -2121,51 +2221,10 @@ def verify(strat, prop, fp_mode):
 				isFromMap2Check = False
 				IsTimeOut(True)
 				#FusEBMC_CONST: remaining_time_s < time_out_s / 2 ; if half of time then run Fuzzer.
-				if FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED and not FuSeBMCFuzzerLib_CoverBranches_Done \
-					and (len(lstFuzzerSeeds) >= FuSeBMCFuzzerLib_COVERBRANCHES_NUM_OF_GENERATED_TESTCASES_TO_RUN_AFL \
-					or remaining_time_s < time_out_s / 2):
+				if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED and not FuSeBMCFuzzerLib_CoverBranches_Done \
+					and (len(lstFuzzerSeeds) >= FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_NUM_OF_GENERATED_TESTCASES_TO_RUN_AFL \
+					or remaining_time_s < FuSeBMCParams.time_out_s / 2):
 					lstFuSeBMC_FuzzerGoals = RunAFLForCoverBranches(instrumentedAFL_src)
-					'''
-					#### BEGIN CHECK ####
-					tc_counter = 1000
-					for root, dirs, files in os.walk(TestSuite_Dir):
-						for file in files:
-							if file.startswith('FUZ_') and file.endswith('.xml'):
-								tc_counter += 1
-								print('*************************s')
-								print(file)
-								full_file_name = os.path.join(root, file)
-								rootXML_t = ET.parse(full_file_name).getroot()
-								lsInputs = [inp.text for inp in rootXML_t.iter('input')]
-								inst_assumptions_gl = [NonDeterministicCall(inp) for inp in lsInputs]
-								gls_lst = []
-								gls_file = full_file_name + '.txt'
-								with open (gls_file,'r') as gls_file_f:
-									for gl in gls_file_f:
-										if len(gl)>0 :
-											if gl.startswith('#'): continue
-											gl_int = int(gl)
-											#if gl_int not in gls_lst :
-											gls_lst.append(gl_int)
-								os.environ['xxx']='./test-suite/'+file+'.inp'
-								gls_lst_tracer,retValTmp = runGoalTracer(instrumentedTracerExec,inst_assumptions_gl,goals_covered_file,tc_counter)
-								isGoalsEQ = isIntListsEqual(gls_lst,gls_lst_tracer)
-								generatedInlst = []
-								with open(full_file_name+'.inp','r') as f:
-									for inpTmp in f: generatedInlst.append(inpTmp.rstrip())
-								isInputsEQ = isIntListsEqual(lsInputs,generatedInlst)
-								if not isGoalsEQ or not isInputsEQ:
-									print('gls_lst       ',gls_lst)
-									print('gls_lst_tracer',gls_lst_tracer)
-									
-									print('lsInputs      ',lsInputs)
-									print('generatedInlst',generatedInlst)
-								
-					del tc_counter,file,full_file_name,rootXML_t,lsInputs,inst_assumptions_gl
-					del gls_lst,gls_file,gls_lst_tracer,retValTmp
-					exit(0)
-					'''
-					#### END  CHECK ####
 				
 				param_timeout_esbmc = ''
 				time_for_goal = -1
@@ -2184,21 +2243,21 @@ def verify(strat, prop, fp_mode):
 					param_memlimit_esbmc = ' --memlimit ' + str(MEM_LIMIT_BRANCHES_ESBMC) + 'g '
 					
 				inst_assumptions=[]
-				if(SHOW_ME_OUTPUT): print(TColors.OKGREEN+'+++++++++++++++++++++++++++++++'+TColors.ENDC)
+				if(FuSeBMCParams.SHOW_ME_OUTPUT): print(TColors.OKGREEN+'+++++++++++++++++++++++++++++++'+TColors.ENDC)
 				print('------------------------------------')
 				print('STARTING : ', goalInfo.toString(),'     ('+str(counter)+'/'+str(lstGoalsToWorkOnLen)+')')
 				sys.stdout.flush()
 				# You can use or True to run all
 				if MAP2CHECK_COVERBRANCHES_ENABLED and (goal_id in goals_to_be_run_map2check):
 					isFromMap2Check = True
-					test_case_file_full=os.path.join(TestSuite_Dir,'testcase_'+str(goal_id)+'_map.xml')
+					test_case_file_full=os.path.join(FuSeBMCParams.TestSuite_Dir,'testcase_'+str(goal_id)+'_map.xml')
 					goal_witness_file_full = map2checkWitnessFile
 					RemoveFileIfExists(map2checkWitnessFile)
-					map2CheckSrc = os.path.abspath(WRAPPER_Output_Dir+'/fusebmc_instrument_output/sed_' + goal + '.c')
-					sed_cmd_line = ' '.join(['sed',"'s/"+goal+':'+"/FuSeBMC_custom_func()/g'", INSTRUMENT_Output_File])
+					map2CheckSrc = os.path.abspath(FuSeBMCParams.WRAPPER_Output_Dir+'/fusebmc_instrument_output/sed_' + goal + '.c')
+					sed_cmd_line = ' '.join(['sed',"'s/"+goal+':'+"/FuSeBMC_custom_func()/g'", FuSeBMCParams.INSTRUMENT_Output_File])
 					try:
 						map2CheckSrc_f = open(map2CheckSrc, 'a')
-						#if FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED :
+						#if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED :
 						#	sedOutFile.write('void fuSeBMC_return(int code){}\n')
 						#	sedOutFile.flush()
 						_ = subprocess.run(shlex.split(sed_cmd_line), stdout=map2CheckSrc_f,stderr=subprocess.DEVNULL)
@@ -2207,27 +2266,33 @@ def verify(strat, prop, fp_mode):
 						#MAP2CHECK_COVERBRANCHES_TIMEOUT : can be caculated !!
 						#map2CheckNonDetGenerator = 'symex' if linesInSource >= 11000 else 'fuzzer'
 						map2CheckNonDetGenerator = 'fuzzer'
-						runWithTimeoutEnabled(' '.join(['timeout',str(MAP2CHECK_COVERBRANCHES_TIMEOUT)+'s', MAP2CHECK_EXE,'--timeout',str(MAP2CHECK_COVERBRANCHES_TIMEOUT),'--fuzzer-mb', str(MEM_LIMIT_BRANCHES_MAP2CHECK),'--nondet-generator',map2CheckNonDetGenerator , '--target-function','--target-function-name', 'FuSeBMC_custom_func', '--generate-witness',map2CheckSrc]), WRAPPER_Output_Dir)
+						runWithTimeoutEnabled(' '.join(['timeout',str(MAP2CHECK_COVERBRANCHES_TIMEOUT)+'s', MAP2CHECK_EXE,'--timeout',str(MAP2CHECK_COVERBRANCHES_TIMEOUT),'--fuzzer-mb', str(MEM_LIMIT_BRANCHES_MAP2CHECK),'--nondet-generator',map2CheckNonDetGenerator , '--target-function','--target-function-name', 'FuSeBMC_custom_func', '--generate-witness',map2CheckSrc]), FuSeBMCParams.WRAPPER_Output_Dir)
 						if os.path.isfile(map2checkWitnessFile):
 							inst_assumptions=__getNonDetAssumptions__(map2checkWitnessFile,instrumentedESBMC,True)
 							inst_assumptions_len = len(inst_assumptions)
-							shutil.copy(map2checkWitnessFile,WRAPPER_Output_Dir + '/map2check_'+str(goal_id)+'.graphml')
+							shutil.copy(map2checkWitnessFile,FuSeBMCParams.WRAPPER_Output_Dir + '/map2check_'+str(goal_id)+'.graphml')
 							if inst_assumptions_len > 0 :
 								generate_testcase_from_assumption_CoverBranches(test_case_file_full,inst_assumptions)
 								if inst_assumptions_len > lastInputInTestcaseCount: lastInputInTestcaseCount = inst_assumptions_len
 								hasInputInTestcase = True
 								goals_covered_lst.append(goal_id)
 								goals_covered_by_map2check.append(goal_id)	
-
+						# comment or uncomment kaled ...
+						#continue: means don't execute ESBMC on goal_id
+						#if len(inst_assumptions)>0: # for example
+						#	continue
+						#if goals_count > 20: # for example
+						#	continue
+						#continue # always # you can not use it again
 					except MyTimeOutException as mytime_ex: raise mytime_ex
 					except KeyboardInterrupt as kb_ex: raise kb_ex;
 					except Exception as ex: print(TColors.FAIL); print(ex); print(TColors.ENDC)
 					
 					# End of MAP2CHECK_COVERBRANCHES_ENABLED
-				if FuSeBMC_GoalTracer_ENABLED and goalTracerExecOK and goal_id in lstFuSeBMC_GoalTracerGoals:
+				if FuSeBMCParams.FuSeBMC_GoalTracer_ENABLED and goalTracerExecOK and goal_id in lstFuSeBMC_GoalTracerGoals:
 					print('    is already covered by FuSeBMC_Tracer...')
 					continue
-				if FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED and FuSeBMCFuzzerLib_CoverBranches_Done \
+				if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED and FuSeBMCFuzzerLib_CoverBranches_Done \
 				and lstFuSeBMC_FuzzerGoals is not None and goal_id in lstFuSeBMC_FuzzerGoals:
 					print('    is already covered by FuSeBMC_Fuzzer...')
 					continue
@@ -2237,9 +2302,9 @@ def verify(strat, prop, fp_mode):
 				try:
 					isFromMap2Check = False
 					goal_witness_file=goal+'.graphml'
-					goal_witness_file_full=os.path.join(INSTRUMENT_Output_Dir ,goal_witness_file)
-					test_case_file_full=os.path.join(TestSuite_Dir,'testcase_'+str(goal_id)+'_ES.xml')
-					inst_esbmc_command_line = get_command_line(strat, prop, arch, instrumentedESBMC, fp_mode)
+					goal_witness_file_full=os.path.join(FuSeBMCParams.INSTRUMENT_Output_Dir ,goal_witness_file)
+					test_case_file_full=os.path.join(FuSeBMCParams.TestSuite_Dir,'testcase_'+str(goal_id)+'_ES.xml')
+					inst_esbmc_command_line = get_command_line(strat, prop, FuSeBMCParams.arch, instrumentedESBMC, fp_mode)
 					
 					#idx = 10 if len(lstGoalsToWorkOn) > 10 else len(lstGoalsToWorkOn)
 					#ll=[lstGoalsToWorkOn[i].goal for i in range(0,idx)]
@@ -2248,7 +2313,7 @@ def verify(strat, prop, fp_mode):
 					
 					
 					inst_new_esbmc_command_line = inst_esbmc_command_line + ' --witness-output ' + goal_witness_file_full + ' --error-label ' + goal \
-													+ ' -I'+os.path.dirname(benchmark) + param_timeout_esbmc + param_memlimit_esbmc
+													+ ' -I'+os.path.dirname(FuSeBMCParams.benchmark) + param_timeout_esbmc + param_memlimit_esbmc
 													# + ' --timeout ' + str(time_per_goal_for_esbmc)+ 's '
 					output = run(inst_new_esbmc_command_line)
 					numOfESBMCRun += 1
@@ -2257,9 +2322,9 @@ def verify(strat, prop, fp_mode):
 					if(res == Result.force_fp_mode):
 						print('Chosen solver doesn\'t support floating-point numbers.')
 						fp_mode = True
-						inst_esbmc_command_line = get_command_line(strat, prop, arch, instrumentedESBMC, fp_mode)
+						inst_esbmc_command_line = get_command_line(strat, prop, FuSeBMCParams.arch, instrumentedESBMC, fp_mode)
 						inst_new_esbmc_command_line = inst_esbmc_command_line + ' --witness-output ' + goal_witness_file_full + ' --error-label ' + goal \
-													+ ' -I'+os.path.dirname(benchmark) + param_timeout_esbmc + param_memlimit_esbmc
+													+ ' -I'+os.path.dirname(FuSeBMCParams.benchmark) + param_timeout_esbmc + param_memlimit_esbmc
 													# + ' --timeout ' + str(time_per_goal_for_esbmc)+ 's '
 						output = run(inst_new_esbmc_command_line)
 	
@@ -2275,7 +2340,7 @@ def verify(strat, prop, fp_mode):
 							hasInputInTestcase=True
 							goals_covered_lst.append(goal_id)
 							
-							if FuSeBMC_GoalTracer_ENABLED and goalTracerExecOK:
+							if FuSeBMCParams.FuSeBMC_GoalTracer_ENABLED and goalTracerExecOK:
 								lstGoalsTracerTmp,tracerRetVal = runGoalTracer(instrumentedTracerExec,inst_assumptions,goals_covered_file,goal_id)
 								if lstGoalsTracerTmp is not None:
 									for g_loop in lstGoalsTracerTmp:
@@ -2316,7 +2381,7 @@ def verify(strat, prop, fp_mode):
 				
 				generate_testcase_from_assumption_CoverBranches(test_case_file_full,inst_assumptions)
 
-		if not is_ctrl_c and FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED and not FuSeBMCFuzzerLib_CoverBranches_Done:
+		if not FuSeBMCParams.is_ctrl_c and FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED and not FuSeBMCFuzzerLib_CoverBranches_Done:
 			lstFuSeBMC_FuzzerGoals = RunAFLForCoverBranches(instrumentedAFL_src)
 		
 		if MUST_GENERATE_RANDOM_TESTCASE or MUST_ADD_EXTRA_TESTCASE:
@@ -2326,7 +2391,7 @@ def verify(strat, prop, fp_mode):
 			singleValueFromFuSeBMCFuzzer, maxLengthOfTestcaseFromFuSeBMCFuzzer = getSingleValueFromFuSeBMCFuzzer(prop)
 			singleValueFromFuSeBMCFuzzer //= 100
 			
-			random_testcase_file=os.path.join(TestSuite_Dir,'Testcase_'+str(extra_test_case_id)+'_Fu.xml')
+			random_testcase_file=os.path.join(FuSeBMCParams.TestSuite_Dir,'Testcase_'+str(extra_test_case_id)+'_Fu.xml')
 			extra_test_case_id += 1
 			randomMaxRange = 5 # hh
 			rndLst=[]
@@ -2371,31 +2436,32 @@ def verify(strat, prop, fp_mode):
 						[NonDeterministicCall('128')]+[NonDeterministicCall('0') for _ in range(0,lastInputInTestcaseCount-1)],
 						lst4, lst5 , lst6]
 			for l in extra_lsts:
-				extra_testcase_file=os.path.join(TestSuite_Dir,'Testcase_'+str(extra_test_case_id)+'_Fu.xml')
+				extra_testcase_file=os.path.join(FuSeBMCParams.TestSuite_Dir,'Testcase_'+str(extra_test_case_id)+'_Fu.xml')
 				extra_test_case_id += 1
 				generate_testcase_from_assumption_CoverBranches(extra_testcase_file,l, True)
 
 		lstFuSeBMC_FuzzerGoals_Run2 = []
-		if not is_ctrl_c and FuSeBMCFuzzerLib_COVERBRANCHES_RUN2_ENABLED:
+		if not FuSeBMCParams.is_ctrl_c and FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_RUN2_ENABLED:
 			lstFuSeBMC_FuzzerGoals_Run2 = RunAFLForCoverBranches_Run2()
-		if RUN_TESTCOV: RunTestCov(benchmark,property_file,arch,WRAPPER_Output_Dir)
+		if FuSeBMCParams.RunTestCov : RunTestCov(FuSeBMCParams.benchmark,property_file,FuSeBMCParams.arch,FuSeBMCParams.WRAPPER_Output_Dir, FuSeBMCParams.SHOW_ME_OUTPUT)
 		if COVERBRANCHES_SHOW_UNIQUE_TESTCASES:
-			os.system('python3 fusebmc_non_repeated_testcases.py --testsuite ' + TestSuite_Dir)
+			os.system('python3 fusebmc_non_repeated_testcases.py --testsuite ' + FuSeBMCParams.TestSuite_Dir)
 		if IS_DEBUG:
 			print('fuSeBMC_run_id:',fuSeBMC_run_id)
 			print('goals_count',goals_count)
-			print('goals_covered_lst',goals_covered_lst,'=', len(goals_covered_lst))
+			if goals_covered_lst is not None:
+				print('goals_covered_lst',goals_covered_lst,'=', len(goals_covered_lst))
 			print('numOfESBMCRun =', numOfESBMCRun)
 			if MAP2CHECK_COVERBRANCHES_ENABLED:
 				print('goals_covered_by_map2check',goals_covered_by_map2check)
 				print('goals_to_be_run_map2check', goals_to_be_run_map2check)
-			if FuSeBMC_GoalTracer_ENABLED:
+			if FuSeBMCParams.FuSeBMC_GoalTracer_ENABLED:
 				print('lstFuSeBMC_GoalTracerGoals',lstFuSeBMC_GoalTracerGoals,'=',len(lstFuSeBMC_GoalTracerGoals))
 				print('nTestcasesCoverItsGoal =',nTestcasesCoverItsGoal)
 				print('nTestcasesNotCoverItsGoal =',nTestcasesNotCoverItsGoal)
-			if FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED and lstFuSeBMC_FuzzerGoals is not None:
+			if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED and lstFuSeBMC_FuzzerGoals is not None:
 				print('lstFuSeBMC_FuzzerGoals',lstFuSeBMC_FuzzerGoals,'=',len(lstFuSeBMC_FuzzerGoals))
-			if FuSeBMC_GoalTracer_ENABLED and FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
+			if FuSeBMCParams.FuSeBMC_GoalTracer_ENABLED and FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
 				lstTracer_union_Fuzzer = [g for g in lstFuSeBMC_GoalTracerGoals]
 				for g in lstFuSeBMC_FuzzerGoals:
 					if g not in lstTracer_union_Fuzzer: lstTracer_union_Fuzzer.append(g)
@@ -2409,7 +2475,7 @@ def verify(strat, prop, fp_mode):
 				
 				lstFuzzer_but_not_Tracer = [g for g in lstFuSeBMC_FuzzerGoals if g not in lstFuSeBMC_GoalTracerGoals]
 				print('lstFuzzer_but_not_Tracer',lstFuzzer_but_not_Tracer,'=',len(lstFuzzer_but_not_Tracer))
-			if FuSeBMCFuzzerLib_COVERBRANCHES_RUN2_ENABLED:
+			if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_RUN2_ENABLED:
 				print('lstFuSeBMC_FuzzerGoals_Run2',lstFuSeBMC_FuzzerGoals_Run2,'=',len(lstFuSeBMC_FuzzerGoals_Run2))
 			if COVERBRANCHES_HANDLE_REPEATED_TESTCASES_ENABLED:
 				print('nRepeatedTCs =',nRepeatedTCs)
@@ -2422,7 +2488,7 @@ def verify(strat, prop, fp_mode):
 		#	return parse_result("VERIFICATION FAILED",prop)
 		#else:
 		#	return parse_result("VERIFICATION SUCCESSFUL",prop)
-		if is_ctrl_c:
+		if FuSeBMCParams.is_ctrl_c:
 			#return parse_result("something else will get unknown",prop)
 			return 'DONE'
 		if IsTimeOut(False):
@@ -2443,31 +2509,43 @@ def verify(strat, prop, fp_mode):
 			witness_file_name = ''
 			testCaseFileName = None
 			myLabel = 'FuSeBMC_ERROR'
-			infoFile = WRAPPER_Output_Dir + '/info.xml'
+			infoFile = FuSeBMCParams.WRAPPER_Output_Dir + '/info.xml'
 			paramHandleInfiniteWhileLoop = ''
 			paramInfinteWhileLoopLimit = ''
 			paramSelectiveInputs = ''
-			if ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED:
+			if FuSeBMCParams.ML == Feature.PredicateParams or \
+				FuSeBMCParams.ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED:
 				paramHandleInfiniteWhileLoop = '--handle-infinite-while-loop'
-			if FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_ENABLED:
+			if FuSeBMCParams.ML == Feature.PredicateParams or \
+				FuSeBMCParams.ERRORCALL_SELECTIVE_INPUTS_ENABLED:
 				paramSelectiveInputs = '--export-selective-inputs'
 			
-			runWithTimeoutEnabled(' '.join([FUSEBMC_INSTRUMENT_EXE_PATH, '--input',benchmark ,'--output', INSTRUMENT_Output_File , 
+			runWithTimeoutEnabled(' '.join([FUSEBMC_INSTRUMENT_EXE_PATH, '--input',FuSeBMCParams.benchmark ,'--output', FuSeBMCParams.INSTRUMENT_Output_File , 
 									paramHandleInfiniteWhileLoop, paramInfinteWhileLoopLimit, paramSelectiveInputs,
 									'--add-label-in-func',myLabel + '=reach_error,fuSeBMC_init=main','--info-file', infoFile,
 									'--export-line-number-for-NonDetCalls','--export-stdc-func','--check-concurrency',
-									'--compiler-args', '-I'+os.path.dirname(benchmark)]))
+									'--extract-features' if FuSeBMCParams.ML == Feature.ExtractFeaturesOnly or FuSeBMCParams.ML == Feature.PredicateParams else '',
+									'--compiler-args', '-I'+os.path.dirname(FuSeBMCParams.benchmark)]))
 			IsTimeOut(True)
 			lineNumberForNonDetCallsLst = None
 			if os.path.isfile(infoFile):
 				try:
 					rootXML = ET.parse(infoFile).getroot()
+					if FuSeBMCParams.ML == Feature.ExtractFeaturesOnly or FuSeBMCParams.ML == Feature.PredicateParams:
+						feature = Feature()
+						feature.parseFromElement(rootXML)
+						feature.printOut()
+						if FuSeBMCParams.ML == Feature.PredicateParams:
+							from fusebmc_ml.Predictor import Predictor
+							predictor = Predictor(feature, Property.cover_error_call)
+							predictor.predictParams(FuSeBMCParams.MLModel)
+					
 					lineNumberForNonDetCallsLst = parseRootXML_NonDetCalls(rootXML)
 					infinteWhileNum = parseRootXML_InfinteWhileNum(rootXML)
 					isConcurrency = parseRootXML_Concurrency(rootXML)
-					#print('isConcurrency', isConcurrency)
-					#if(infinteWhileNum != 0): print('Infinte While Loops =',infinteWhileNum)
-					if FuSeBMCFuzzerLib_ERRORCALL_SELECTIVE_INPUTS_ENABLED:
+					print('isConcurrency', isConcurrency)
+					if(infinteWhileNum != 0): print('Infinte While Loops =',infinteWhileNum)
+					if FuSeBMCParams.ERRORCALL_SELECTIVE_INPUTS_ENABLED:
 						selectiveInputsLst, isSelectiveInputsFromMain = parseRootXML_SelectiveInputs(rootXML)
 						if selectiveInputsLst is not None and len(selectiveInputsLst) > 0:
 							writeSelectiveInputsLstToFile()
@@ -2475,19 +2553,18 @@ def verify(strat, prop, fp_mode):
 							print('selectiveInputsLst', selectiveInputsLst)
 							print('isSelectiveInputsFromMain', isSelectiveInputsFromMain)
 					stdCFuncsLst = parseRootXML_StdCFuncs(rootXML)
-					if IS_DEBUG:
-						print('stdCFuncsLst',stdCFuncsLst)
+					if IS_DEBUG: print('stdCFuncsLst',stdCFuncsLst)
 					del rootXML
 				except Exception as ex : HandleException(ex)
 			isInstrumentOK=True
 			#check if FuSeBMC_inustrument worked
-			if not os.path.isfile(INSTRUMENT_Output_File):
+			if not os.path.isfile(FuSeBMCParams.INSTRUMENT_Output_File):
 				HandleException(Exception('Cannot instrument the file'), '', True)
 				isInstrumentOK = False
 				myLabel = 'ERROR'
-				toWorkSourceFile=benchmark
+				toWorkSourceFile=FuSeBMCParams.benchmark
 			else:
-				toWorkSourceFile=INSTRUMENT_Output_File
+				toWorkSourceFile=FuSeBMCParams.INSTRUMENT_Output_File
 				#return "Error"
 			if MUST_COMPILE_INSTRUMENTED :
 				CompileFile(toWorkSourceFile,os.path.dirname(os.path.abspath(toWorkSourceFile)))
@@ -2504,12 +2581,12 @@ def verify(strat, prop, fp_mode):
 					#map2CheckNonDetGenerator = 'symex' if linesInSource >= 11000 else 'fuzzer'
 					map2CheckNonDetGenerator = 'fuzzer'
 					witness_file_name = map2checkWitnessFile
-					testCaseFileName = TestSuite_Dir + "/testcase_map_fuzzer.xml"
-					runWithTimeoutEnabled(' '.join(['timeout',str(MAP2CHECK_ERRORCALL_FUZZER_TIMEOUT)+'s', MAP2CHECK_EXE,'--timeout',str(MAP2CHECK_ERRORCALL_FUZZER_TIMEOUT),'--fuzzer-mb', str(MEM_LIMIT_ERROR_CALL_MAP2CHECK), '--nondet-generator', map2CheckNonDetGenerator, '--target-function', '--target-function-name','reach_error','--generate-witness',os.path.abspath(toWorkSourceFile)]), WRAPPER_Output_Dir)
+					testCaseFileName = FuSeBMCParams.TestSuite_Dir + "/testcase_map_fuzzer.xml"
+					runWithTimeoutEnabled(' '.join(['timeout',str(MAP2CHECK_ERRORCALL_FUZZER_TIMEOUT)+'s', MAP2CHECK_EXE,'--timeout',str(MAP2CHECK_ERRORCALL_FUZZER_TIMEOUT),'--fuzzer-mb', str(MEM_LIMIT_ERROR_CALL_MAP2CHECK), '--nondet-generator', map2CheckNonDetGenerator, '--target-function', '--target-function-name','reach_error','--generate-witness',os.path.abspath(toWorkSourceFile)]), FuSeBMCParams.WRAPPER_Output_Dir)
 					if os.path.isfile(map2checkWitnessFile):
 						createTestFile(map2checkWitnessFile,toWorkSourceFile, testCaseFileName ,True)
 						if MAP2CHECK_ERRORCALL_SYMEX_ENABLED:
-							shutil.copy(map2checkWitnessFile, WRAPPER_Output_Dir + '/map2check_fuzzer.graphml')
+							shutil.copy(map2checkWitnessFile, FuSeBMCParams.WRAPPER_Output_Dir + '/map2check_fuzzer.graphml')
 						is_test_file_created=True
 				except MyTimeOutException as e: raise e
 				except KeyboardInterrupt as kbe: raise kbe
@@ -2524,9 +2601,9 @@ def verify(strat, prop, fp_mode):
 					RemoveFileIfExists(map2checkWitnessFile)
 					#map2CheckNonDetGenerator = 'symex' if linesInSource >= 11000 else 'fuzzer'
 					map2CheckNonDetGenerator = 'symex'
-					testCaseFileName = TestSuite_Dir + '/testcase_map_symex.xml'
+					testCaseFileName = FuSeBMCParams.TestSuite_Dir + '/testcase_map_symex.xml'
 					witness_file_name = map2checkWitnessFile
-					runWithTimeoutEnabled(' '.join(['timeout',str(MAP2CHECK_ERRORCALL_SYMEX_TIMEOUT)+'s', MAP2CHECK_EXE,'--timeout',str(MAP2CHECK_ERRORCALL_SYMEX_TIMEOUT),'--fuzzer-mb', str(MEM_LIMIT_ERROR_CALL_MAP2CHECK),'--nondet-generator', map2CheckNonDetGenerator, '--target-function', '--target-function-name','reach_error','--generate-witness',os.path.abspath(toWorkSourceFile)]), WRAPPER_Output_Dir)
+					runWithTimeoutEnabled(' '.join(['timeout',str(MAP2CHECK_ERRORCALL_SYMEX_TIMEOUT)+'s', MAP2CHECK_EXE,'--timeout',str(MAP2CHECK_ERRORCALL_SYMEX_TIMEOUT),'--fuzzer-mb', str(MEM_LIMIT_ERROR_CALL_MAP2CHECK),'--nondet-generator', map2CheckNonDetGenerator, '--target-function', '--target-function-name','reach_error','--generate-witness',os.path.abspath(toWorkSourceFile)]), FuSeBMCParams.WRAPPER_Output_Dir)
 					if os.path.isfile(map2checkWitnessFile):
 						createTestFile(map2checkWitnessFile,toWorkSourceFile, testCaseFileName ,True)
 						#shutil.copy(map2checkWitnessFile, WRAPPER_Output_Dir + '/map2check_symex.graphml'))
@@ -2536,7 +2613,7 @@ def verify(strat, prop, fp_mode):
 				except Exception as ex :HandleException(ex)
 
 			
-			if ERRORCALL_RUNTWICE_ENABLED:
+			if FuSeBMCParams.ERRORCALL_RUNTWICE_ENABLED:
 				try:
 					IsTimeOut(True)
 					runNumber = 1
@@ -2544,17 +2621,17 @@ def verify(strat, prop, fp_mode):
 					print('STARTING GOAL '+str(goal)+' ... \n');sys.stdout.flush()
 					is_test_file_created = False
 					isFromMap2Check = False
-					testCaseFileName = TestSuite_Dir + '/testcase_'+str(goal)+'_ES.xml'
-					esbmc_command_line = get_command_line(strat, prop, arch, toWorkSourceFile, fp_mode)	
-					witness_file_name = os.path.join(INSTRUMENT_Output_Dir,os.path.basename(benchmark) + '__2.graphml')
-					esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(benchmark)+ ' '
+					testCaseFileName = FuSeBMCParams.TestSuite_Dir + '/testcase_'+str(goal)+'_ES.xml'
+					esbmc_command_line = get_command_line(strat, prop, FuSeBMCParams.arch, toWorkSourceFile, fp_mode)	
+					witness_file_name = os.path.join(FuSeBMCParams.INSTRUMENT_Output_Dir,os.path.basename(FuSeBMCParams.benchmark) + '__2.graphml')
+					esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(FuSeBMCParams.benchmark)+ ' '
 					if isInstrumentOK : esbmc_command_line += ' --error-label ' + myLabel + ' '
 					#timeout_for_run1 = remaining_time_s - 5
-					#if FuSeBMCFuzzerLib_ERRORCALL_ENABLED:
-					#	timeout_for_run1 -= FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT
+					#if FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_ENABLED:
+					#	timeout_for_run1 -= FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT
 					#if timeout_for_run1 < 0 : timeout_for_run1 = 10
 					#timeout_for_run1 = 60 # second
-					esbmc_command_line += ' --timeout ' + str(ERRORCALL_ESBMC_RUN1_TIMEOUT)+'s '
+					esbmc_command_line += ' --timeout ' + str(FuSeBMCParams.ERRORCALL_ESBMC_RUN1_TIMEOUT)+'s '
 					esbmc_command_line += ' --memlimit ' + str(MEM_LIMIT_ERROR_CALL_ESBMC) + 'g '
 					output = run(esbmc_command_line)
 					IsTimeOut(True)
@@ -2565,7 +2642,7 @@ def verify(strat, prop, fp_mode):
 				except KeyboardInterrupt as kbe: raise kbe
 				except Exception as ex : HandleException(ex)
 			
-			if FuSeBMCFuzzerLib_ERRORCALL_ENABLED:
+			if FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_ENABLED:
 				try:
 					print('\nRunning FuSeBMC for Cover-Error:\n')
 					RunAFLForErrorCall()
@@ -2580,10 +2657,10 @@ def verify(strat, prop, fp_mode):
 				print('STARTING GOAL '+str(goal)+' ... \n');sys.stdout.flush()
 				is_test_file_created = False
 				isFromMap2Check = False
-				testCaseFileName = TestSuite_Dir + '/testcase_'+str(goal)+'_ES.xml'
-				witness_file_name = os.path.join(INSTRUMENT_Output_Dir,os.path.basename(benchmark) + '__1.graphml')
-				esbmc_command_line = get_command_line(strat, prop, arch, toWorkSourceFile, fp_mode)
-				esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(benchmark)+ ' '
+				testCaseFileName = FuSeBMCParams.TestSuite_Dir + '/testcase_'+str(goal)+'_ES.xml'
+				witness_file_name = os.path.join(FuSeBMCParams.INSTRUMENT_Output_Dir,os.path.basename(FuSeBMCParams.benchmark) + '__1.graphml')
+				esbmc_command_line = get_command_line(strat, prop, FuSeBMCParams.arch, toWorkSourceFile, fp_mode)
+				esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(FuSeBMCParams.benchmark)+ ' '
 				if isInstrumentOK : esbmc_command_line += ' --error-label ' + myLabel + ' '
 				esbmc_command_line += ' --timeout ' + str(int(remaining_time_s - 1))+'s '
 				esbmc_command_line += ' --memlimit ' + str(MEM_LIMIT_ERROR_CALL_ESBMC) + 'g '
@@ -2592,10 +2669,10 @@ def verify(strat, prop, fp_mode):
 				res = parse_result(output, category_property)
 				if(res == Result.force_fp_mode):
 					fp_mode = True
-					esbmc_command_line = get_command_line(strat, prop, arch, toWorkSourceFile, fp_mode)
-					esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(benchmark)+ ' '
+					esbmc_command_line = get_command_line(strat, prop, FuSeBMCParams.arch, toWorkSourceFile, fp_mode)
+					esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(FuSeBMCParams.benchmark)+ ' '
 					if isInstrumentOK : esbmc_command_line += ' --error-label ' + myLabel + ' '
-					esbmc_command_line += ' --timeout ' + str(int(time_out_s - 1))+'s '
+					esbmc_command_line += ' --timeout ' + str(int(FuSeBMCParams.time_out_s - 1))+'s '
 					esbmc_command_line += ' --memlimit ' + str(MEM_LIMIT_ERROR_CALL_ESBMC) + 'g '
 					output = run(esbmc_command_line)
 					IsTimeOut(True)
@@ -2665,17 +2742,17 @@ def verify(strat, prop, fp_mode):
 			tmpCounter = 0
 			for lst_rnd in randomLsts:
 				tmpCounter += 1
-				tmpTestCaseFile = TestSuite_Dir+ '/testcase_'+str(tmpCounter)+'_Fuzzer.xml'
+				tmpTestCaseFile = FuSeBMCParams.TestSuite_Dir+ '/testcase_'+str(tmpCounter)+'_Fuzzer.xml'
 				generate_testcase_from_assumption_ErrorCall(tmpTestCaseFile,lst_rnd)
 				#
 
-		if not is_ctrl_c and FuSeBMCFuzzerLib_ERRORCALL_RUN2_ENABLED:
+		if not FuSeBMCParams.is_ctrl_c and FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_RUN2_ENABLED:
 			RunAFLForErrorCall_Run2()
-		if RUN_TESTCOV: RunTestCov(benchmark,property_file,arch,WRAPPER_Output_Dir)
+		if FuSeBMCParams.RunTestCov: RunTestCov(FuSeBMCParams.benchmark,property_file,FuSeBMCParams.arch,FuSeBMCParams.WRAPPER_Output_Dir,FuSeBMCParams.SHOW_ME_OUTPUT)
 		
 		#if IS_DEBUG:
 			#print(os.times())
-		if is_ctrl_c:
+		if FuSeBMCParams.is_ctrl_c:
 			print('CTRL + C ....')
 			return 'Done'
 			#return parse_result("something else will get unknown",prop)
@@ -2689,8 +2766,25 @@ def verify(strat, prop, fp_mode):
 		return 'DONE'
 		
 	if prop in [Property.memsafety, Property.overflow, Property.unreach_call, Property.termination, Property.memcleanup]:
-		toWorkSourceFile=benchmark # toWorkSourceFile=INSTRUMENT_Output_File
-		isFromMap2Check = False		
+		toWorkSourceFile=FuSeBMCParams.benchmark # toWorkSourceFile=FuSeBMCParams.INSTRUMENT_Output_File
+		if FuSeBMCParams.ML == Feature.ExtractFeaturesOnly or FuSeBMCParams.ML == Feature.PredicateParams:
+			infoFile = FuSeBMCParams.WRAPPER_Output_Dir + '/info.xml'
+			runWithTimeoutEnabled(' '.join([FUSEBMC_INSTRUMENT_EXE_PATH, '--input',FuSeBMCParams.benchmark ,'--output', '/dev/null',
+									'--export-line-number-for-NonDetCalls',
+									'--info-file', infoFile,
+									'--extract-features' if FuSeBMCParams.ML == Feature.ExtractFeaturesOnly or FuSeBMCParams.ML == Feature.PredicateParams else '',
+									'--compiler-args','-I'+os.path.dirname(FuSeBMCParams.benchmark)]))
+			if os.path.isfile(infoFile):
+				rootXML = ET.parse(infoFile).getroot()
+				feature = Feature()
+				feature.parseFromElement(rootXML)
+				feature.printOut()
+				if FuSeBMCParams.ML == Feature.PredicateParams:
+					from fusebmc_ml.Predictor import Predictor
+					predictor = Predictor(feature, prop)
+					predictor.predictParams(FuSeBMCParams.MLModel)
+				del rootXML
+		isFromMap2Check = False
 		try:
 			if MAP2CHECK_MEM_OVERFLOW_REACH_TERM_ENABLED:
 				print('STARTING GOAL 1 ... \n')
@@ -2699,8 +2793,8 @@ def verify(strat, prop, fp_mode):
 					is_test_file_created = False
 					map2CheckNonDetGenerator = 'fuzzer'
 					witness_file_name = map2checkWitnessFile
-					testCaseFileName = TestSuite_Dir + '/testcase_map_fuzzer.xml'
-					runWithTimeoutEnabled(' '.join(['timeout',str(MAP2CHECK_MEM_OVERFLOW_REACH_TERM_FUZZER_TIMEOUT)+'s', MAP2CHECK_EXE,'--timeout',str(MAP2CHECK_MEM_OVERFLOW_REACH_TERM_FUZZER_TIMEOUT),'--fuzzer-mb', str(MEM_LIMIT_MEM_OVERFLOW_REACH_TERM_MAP2CHECK), '--nondet-generator', map2CheckNonDetGenerator, '--target-function', '--target-function-name','reach_error','--generate-witness',os.path.abspath(toWorkSourceFile)]), WRAPPER_Output_Dir)
+					testCaseFileName = FuSeBMCParams.TestSuite_Dir + '/testcase_map_fuzzer.xml'
+					runWithTimeoutEnabled(' '.join(['timeout',str(MAP2CHECK_MEM_OVERFLOW_REACH_TERM_FUZZER_TIMEOUT)+'s', MAP2CHECK_EXE,'--timeout',str(MAP2CHECK_MEM_OVERFLOW_REACH_TERM_FUZZER_TIMEOUT),'--fuzzer-mb', str(MEM_LIMIT_MEM_OVERFLOW_REACH_TERM_MAP2CHECK), '--nondet-generator', map2CheckNonDetGenerator, '--target-function', '--target-function-name','reach_error','--generate-witness',os.path.abspath(toWorkSourceFile)]), FuSeBMCParams.WRAPPER_Output_Dir)
 					if os.path.isfile(map2checkWitnessFile):
 						createTestFile(map2checkWitnessFile,toWorkSourceFile, testCaseFileName ,True)
 						is_test_file_created = True
@@ -2714,26 +2808,26 @@ def verify(strat, prop, fp_mode):
 					runNumber = 1
 					isFromMap2Check = False
 					#is_test_file_created = False
-					witness_file_name = os.path.join(INSTRUMENT_Output_Dir, os.path.basename(benchmark) + '_1.graphml')
-					testCaseFileName = TestSuite_Dir + "/testcase_1.xml"
-					esbmc_command_line = get_command_line(strat, prop, arch, toWorkSourceFile, fp_mode)
-					esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(benchmark)+ ' '
-					esbmc_command_line += ' --timeout ' + str(int(time_out_s - 1))+'s '
+					witness_file_name = os.path.join(FuSeBMCParams.INSTRUMENT_Output_Dir, os.path.basename(FuSeBMCParams.benchmark) + '_1.graphml')
+					testCaseFileName = FuSeBMCParams.TestSuite_Dir + "/testcase_1.xml"
+					esbmc_command_line = get_command_line(strat, prop, FuSeBMCParams.arch, toWorkSourceFile, fp_mode)
+					esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(FuSeBMCParams.benchmark)+ ' '
+					esbmc_command_line += ' --timeout ' + str(int(FuSeBMCParams.time_out_s - 1))+'s '
 					esbmc_command_line += ' --memlimit ' + str(MEM_LIMIT_ESBMC) + 'g '
 					output = run(esbmc_command_line)
 					IsTimeOut(True)
 					res = parse_result(output, category_property)
 					if(res == Result.force_fp_mode):
 						fp_mode = True
-						esbmc_command_line = get_command_line(strat, prop, arch, toWorkSourceFile, fp_mode)
-						esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(benchmark)+ ' '
+						esbmc_command_line = get_command_line(strat, prop, FuSeBMCParams.arch, toWorkSourceFile, fp_mode)
+						esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(FuSeBMCParams.benchmark)+ ' '
 						#if isInstrumentOK : esbmc_command_line += ' --error-label ' + myLabel + ' '
-						esbmc_command_line += ' --timeout ' + str(int(time_out_s - 1))+'s '
+						esbmc_command_line += ' --timeout ' + str(int(FuSeBMCParams.time_out_s - 1))+'s '
 						esbmc_command_line += ' --memlimit ' + str(MEM_LIMIT_ERROR_CALL_ESBMC) + 'g '
 						output = run(esbmc_command_line)
 						IsTimeOut(True)	
 					if os.path.isfile(witness_file_name):
-						createTestFile(witness_file_name, benchmark, testCaseFileName , False)
+						createTestFile(witness_file_name, FuSeBMCParams.benchmark, testCaseFileName , False)
 						is_test_file_created=True
 				except MyTimeOutException as e: raise e
 				except KeyboardInterrupt as kbe: raise kbe
@@ -2745,31 +2839,35 @@ def verify(strat, prop, fp_mode):
 				runNumber = 2
 				isFromMap2Check = False
 				is_test_file_created = False
-				witness_file_name = os.path.join(INSTRUMENT_Output_Dir, os.path.basename(benchmark) + '_2.graphml')
-				testCaseFileName = TestSuite_Dir + "/testcase_2.xml"
-				esbmc_command_line = get_command_line(strat, prop, arch, toWorkSourceFile, fp_mode)
-				esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(benchmark)+ ' '
-				esbmc_command_line += ' --timeout ' + str(int(time_out_s - 1))+'s '
+				#witness_file_name = os.path.join(FuSeBMCParams.INSTRUMENT_Output_Dir, os.path.basename(FuSeBMCParams.benchmark) + '_2.graphml')
+				witness_file_name = os.path.join(FuSeBMCParams.INSTRUMENT_Output_Dir, 'witness.graphml')
+				testCaseFileName = FuSeBMCParams.TestSuite_Dir + "/testcase_2.xml"
+				esbmc_command_line = get_command_line(strat, prop, FuSeBMCParams.arch, toWorkSourceFile, fp_mode)
+				esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(FuSeBMCParams.benchmark)+ ' '
+				esbmc_command_line += ' --timeout ' + str(int(FuSeBMCParams.time_out_s - 1))+'s '
 				esbmc_command_line += ' --memlimit ' + str(MEM_LIMIT_ESBMC) + 'g '
 				output = run(esbmc_command_line)
 				IsTimeOut(True)
 				res = parse_result(output, category_property)
 				if(res == Result.force_fp_mode):
 					fp_mode = True
-					esbmc_command_line = get_command_line(strat, prop, arch, toWorkSourceFile, fp_mode)
-					esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(benchmark)+ ' '
+					esbmc_command_line = get_command_line(strat, prop, FuSeBMCParams.arch, toWorkSourceFile, fp_mode)
+					esbmc_command_line += ' --witness-output ' + witness_file_name +' '+'-I'+os.path.dirname(FuSeBMCParams.benchmark)+ ' '
 					#if isInstrumentOK : esbmc_command_line += ' --error-label ' + myLabel + ' '
-					esbmc_command_line += ' --timeout ' + str(int(time_out_s - 1))+'s '
+					esbmc_command_line += ' --timeout ' + str(int(FuSeBMCParams.time_out_s - 1))+'s '
 					esbmc_command_line += ' --memlimit ' + str(MEM_LIMIT_ERROR_CALL_ESBMC) + 'g '
 					output = run(esbmc_command_line)
-					IsTimeOut(True)					
-				if os.path.isfile(witness_file_name):
-					createTestFile(witness_file_name,toWorkSourceFile, testCaseFileName , False)
-					is_test_file_created = True
+					IsTimeOut(True)
+				#if os.path.isfile(witness_file_name):
+				#	createTestFile(witness_file_name,toWorkSourceFile, testCaseFileName , False)
+				#	is_test_file_created = True
 			except MyTimeOutException as e: raise e
 			except KeyboardInterrupt as kbe: raise kbe
 			except Exception as ex :HandleException(ex)
 
+			if FuSeBMCParams.RunTestCov:
+				from fusebmc_util.validator import RunCPA
+				RunCPA(FuSeBMCParams.benchmark,os.path.abspath(property_file),FuSeBMCParams.arch,witness_file_name,FuSeBMCParams.WRAPPER_Output_Dir)
 			return res
 		except MyTimeOutException as e:
 			#print('Timeout !!!')
@@ -2778,8 +2876,9 @@ def verify(strat, prop, fp_mode):
 			#print('CTRL + C')
 			pass
 		except Exception: pass
-		if not is_test_file_created: createTestFile(witness_file_name, benchmark, testCaseFileName, isFromMap2Check)
-		if is_ctrl_c:
+		#if not is_test_file_created: createTestFile(witness_file_name, FuSeBMCParams.benchmark, testCaseFileName, isFromMap2Check)
+		
+		if FuSeBMCParams.is_ctrl_c:
 			return parse_result(output,prop)
 		if IsTimeOut(False):
 			print('The Time is out...')
@@ -2788,13 +2887,75 @@ def verify(strat, prop, fp_mode):
 
 # End of verify mthode
 
+'''global fuSeBMC_run_id
+global important_outs_by_ESBMC
+global map2checkWitnessFile
+global FuSeBMCFuzzerLib_CoverBranches_Input_Covered_Goals_File
+global FuSeBMCFuzzerLib_CoverBranches_Output_Covered_Goals_File
+global property_file
+global category_property, property_file_content
+'''
 args = getArgs()
-arch = args.arch
+FuSeBMCParams.arch = args.arch
 version = args.version
-property_file = args.propertyfile
-benchmark = args.benchmark
-strategy = args.strategy
-concurrency = args.concurrency
+property_file = FuSeBMCParams.propertyFile = args.propertyfile
+FuSeBMCParams.benchmark = args.benchmark
+FuSeBMCParams.strategy = args.strategy
+FuSeBMCParams.concurrency = args.concurrency
+FuSeBMCParams.RunTestCov = args.RunTestCov
+FuSeBMCParams.ResultDir = args.ResultDir
+FuSeBMCParams.time_out_s = args.time_out_s
+FuSeBMCParams.solver = args.solver
+FuSeBMCParams.encoding = args.encoding
+FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED = args.FuzzerCoverBranches1
+FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_TIMEOUT = args.FuzzerCoverBranches1Time
+FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_RUN2_ENABLED = args.FuzzerCoverBranches2
+FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_TIMEOUT_2 = args.FuzzerCoverBranches2Time
+FuSeBMCParams.FuSeBMC_GoalTracer_ENABLED = args.GoalTracer
+FuSeBMCParams.goalSorting = args.GoalSorting
+FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH = args.GlobalDepth
+FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_NUM_OF_GENERATED_TESTCASES_TO_RUN_AFL = args.FuSeBMCFuzzerLib_COVERBRANCHES_NUM_OF_GENERATED_TESTCASES_TO_RUN_AFL
+FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_ENABLED = args.FuSeBMCFuzzerLib_ERRORCALL_ENABLED
+FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT = args.FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT
+FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_RUN2_ENABLED = args.FuSeBMCFuzzerLib_ERRORCALL_RUN2_ENABLED
+FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT_2 = args.FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT_2
+FuSeBMCParams.ERRORCALL_ESBMC_RUN1_TIMEOUT = args.ERRORCALL_ESBMC_RUN1_TIMEOUT
+FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_SEEDGEN_SEEDS_NUM = args.FuSeBMCFuzzerLib_ERRORCALL_SEEDGEN_SEEDS_NUM
+FuSeBMCParams.ERRORCALL_RUNTWICE_ENABLED = args.ERRORCALL_RUNTWICE_ENABLED
+FuSeBMCParams.SHOW_ME_OUTPUT = args.SHOW_ME_OUTPUT
+FuSeBMCParams.ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED = args.ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED
+FuSeBMCParams.ERRORCALL_INFINITE_WHILE_TIME_INCREMENT = args.ERRORCALL_INFINITE_WHILE_TIME_INCREMENT
+FuSeBMCParams.ML = args.ML
+FuSeBMCParams.MLModel = args.MLModel
+FuSeBMCParams.COVERBRANCHES_HANDLE_INFINITE_WHILE_LOOP_ENABLED = args.COVERBRANCHES_HANDLE_INFINITE_WHILE_LOOP_ENABLED
+FuSeBMCParams.COVERBRANCHES_INFINITE_WHILE_TIME_INCREMENT = args.COVERBRANCHES_INFINITE_WHILE_TIME_INCREMENT
+FuSeBMCParams.COVERBRANCHES_SELECTIVE_INPUTS_ENABLED = args.COVERBRANCHES_SELECTIVE_INPUTS_ENABLED
+FuSeBMCParams.COVERBRANCHES_SELECTIVE_INPUTS_TIME_INCREMENT = args.COVERBRANCHES_SELECTIVE_INPUTS_TIME_INCREMENT
+
+FuSeBMCParams.ERRORCALL_SELECTIVE_INPUTS_ENABLED = args.ERRORCALL_SELECTIVE_INPUTS_ENABLED
+FuSeBMCParams.MAX_K_STEP = args.MAX_K_STEP
+FuSeBMCParams.UNWIND = args.UNWIND
+FuSeBMCParams.k_step = args.k_step
+
+FuSeBMCParams.contextBound = args.contextBound
+FuSeBMCParams.contextBoundStep = args.contextBoundStep
+FuSeBMCParams.maxContextBound= args.maxContextBound
+
+FuSeBMCParams.maxInductiveStep = args.maxInductiveStep
+FuSeBMCParams.addSymexValueSets = args.addSymexValueSets
+
+'''
+arch = FuSeBMCParams.arch
+version = FuSeBMCParams.version
+property_file = FuSeBMCParams.propertyFile
+benchmark = FuSeBMCParams.benchmark
+strategy = FuSeBMCParams.strategy
+concurrency = FuSeBMCParams.concurrency
+'''
+
+#signal.signal(signal.SIGALRM, timeOutSigHandler)
+#signal.signal(signal.SIGTERM, timeOutSigHandler)
+#signal.signal(signal.SIGINT, timeOutSigHandler)
 
 if version:
 	#print (os.popen(ESBMC_EXE + "--version").read()[6:]),
@@ -2803,104 +2964,80 @@ if version:
 if property_file is None:
 	print ("Please, specify a property file")
 	exit(1)
-if benchmark is None:
+if FuSeBMCParams.benchmark is None:
 	print ("Please, specify a benchmark to verify")
 	exit(1)
-elif not os.path.isfile(benchmark):
-	print(benchmark,'is not valid file')
+elif not os.path.isfile(FuSeBMCParams.benchmark):
+	print(FuSeBMCParams.benchmark,'is not valid file')
 	exit(1)
-else: benchmark = os.path.abspath(benchmark)
+#else: benchmark = os.path.abspath(FuSeBMCParams.benchmark)
 
-if args.timeout is not None :
-	time_out_s = args.timeout
-time_out_s -= time_for_zipping_s
-if(SHOW_ME_OUTPUT) : print('time_out_s',time_out_s)
+
+FuSeBMCParams.time_out_s -= time_for_zipping_s
+if(FuSeBMCParams.SHOW_ME_OUTPUT) : print('time_out_s',FuSeBMCParams.time_out_s)
 
 
 category_property, property_file_content = GetPropertyFromFile(property_file)
 if(category_property is None): exit(1)
 
-if args.output is not None:
-	WRAPPER_Output_Dir = os.path.abspath(args.output)
+if FuSeBMCParams.ResultDir is not None:
+	FuSeBMCParams.WRAPPER_Output_Dir = os.path.abspath(FuSeBMCParams.ResultDir)+'/'
+
+while True:
 	fuSeBMC_run_id = str(GenerateRondomFileName())
-	if not os.path.isdir(WRAPPER_Output_Dir):
-		os.makedirs(WRAPPER_Output_Dir,exist_ok=True)
-else:
-	while True:
-		fuSeBMC_run_id = str(GenerateRondomFileName())
-		tmpOutputFolder = WRAPPER_Output_Dir + os.path.basename(benchmark)+'_'+ fuSeBMC_run_id
-		if not os.path.isdir(tmpOutputFolder):
-			WRAPPER_Output_Dir = os.path.abspath(tmpOutputFolder)
-			os.makedirs(WRAPPER_Output_Dir,exist_ok=True)
-			break
+	tmpOutputFolder = FuSeBMCParams.WRAPPER_Output_Dir + os.path.basename(FuSeBMCParams.benchmark)+'_'+ fuSeBMC_run_id
+	if not os.path.isdir(tmpOutputFolder):
+		FuSeBMCParams.WRAPPER_Output_Dir = os.path.abspath(tmpOutputFolder)
+		os.makedirs(FuSeBMCParams.WRAPPER_Output_Dir,exist_ok=True)
+		break
 
+FuSeBMCParams.SetupValues()
+sys.stderr.write('<outputdir>'+FuSeBMCParams.WRAPPER_Output_Dir+'</outputdir>')
+sys.stderr.flush()
 if IS_DEBUG : print('fuSeBMC_run_id=',fuSeBMC_run_id)
-TestSuite_Dir = WRAPPER_Output_Dir + "/test-suite/"
-INSTRUMENT_Output_Dir = WRAPPER_Output_Dir + '/fusebmc_instrument_output/'
-
 
 if category_property == Property.cover_branches or category_property == Property.cover_error_call:
 	important_outs_by_ESBMC = []
-	#signal.signal(signal.SIGALRM, timeOutSigHandler)
-	# ESBMC default commands: this is only for Cover-error and cover-branches
-	esbmc_dargs = "--no-div-by-zero-check --force-malloc-success --state-hashing "
-	esbmc_dargs += "--no-align-check --k-step 5 --floatbv "
-	#esbmc_dargs += "--no-align-check --k-step 120 --floatbv --unlimited-k-steps "
-	esbmc_dargs += "--context-bound 2 "
-	#--unwind 1000 --max-k-step 1000 
-	esbmc_dargs += "--show-cex "
-	#esbmc_dargs += " --overflow-check " 
-	
-	INSTRUMENT_Output_File = WRAPPER_Output_Dir+'/fusebmc_instrument_output/instrumented.c'
-	INSTRUMENT_Output_Goals_File = INSTRUMENT_Output_Dir+'/goals.txt'
+	#FuSeBMCParams.INSTRUMENT_Output_File = FuSeBMCParams.WRAPPER_Output_Dir+'/fusebmc_instrument_output/instrumented.c'
+	#FuSeBMCParams.INSTRUMENT_Output_Goals_File = INSTRUMENT_Output_Dir+'/goals.txt'
 	#INSTRUMENT_OUTPUT_GOALS_DIR = WRAPPER_Output_Dir+'/fusebmc_instrument_output/goals_output/'
 
 	
-	MakeFolderEmptyORCreate(INSTRUMENT_Output_Dir)
-	RemoveFileIfExists(INSTRUMENT_Output_File)
+	MakeFolderEmptyORCreate(FuSeBMCParams.INSTRUMENT_Output_Dir)
+	RemoveFileIfExists(FuSeBMCParams.INSTRUMENT_Output_File)
 	if category_property == Property.cover_branches:
-		RemoveFileIfExists(INSTRUMENT_Output_Goals_File)
+		RemoveFileIfExists(FuSeBMCParams.INSTRUMENT_Output_Goals_File)
 		if MAP2CHECK_COVERBRANCHES_ENABLED:
-			map2checkWitnessFile= WRAPPER_Output_Dir + '/witness.graphml'
-		if FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
-			FuSeBMCFuzzerLib_CoverBranches_Input_Covered_Goals_File = os.path.abspath(WRAPPER_Output_Dir+'/FuSeBMC_Fuzzer_input_goals.txt')
-			FuSeBMCFuzzerLib_CoverBranches_Output_Covered_Goals_File = os.path.abspath(WRAPPER_Output_Dir+'/FuSeBMC_Fuzzer_output_goals.txt')
+			map2checkWitnessFile= FuSeBMCParams.WRAPPER_Output_Dir + '/witness.graphml'
+		#if FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED:
+		FuSeBMCFuzzerLib_CoverBranches_Input_Covered_Goals_File = os.path.abspath(FuSeBMCParams.WRAPPER_Output_Dir+'/FuSeBMC_Fuzzer_input_goals.txt')
+		FuSeBMCFuzzerLib_CoverBranches_Output_Covered_Goals_File = os.path.abspath(FuSeBMCParams.WRAPPER_Output_Dir+'/FuSeBMC_Fuzzer_output_goals.txt')
 
 		#MakeFolderEmptyORCreate(INSTRUMENT_OUTPUT_GOALS_DIR)
-	MakeFolderEmptyORCreate(TestSuite_Dir)
+	MakeFolderEmptyORCreate(FuSeBMCParams.TestSuite_Dir)
 	
 	if category_property == Property.cover_error_call:
 		if MAP2CHECK_ERRORCALL_FUZZER_ENABLED or MAP2CHECK_ERRORCALL_SYMEX_ENABLED:
-			map2checkWitnessFile= WRAPPER_Output_Dir + '/witness.graphml'
+			map2checkWitnessFile= FuSeBMCParams.WRAPPER_Output_Dir + '/witness.graphml'
 			#RemoveFileIfExists(map2checkWitnessFile)
 	WriteMetaDataFromWrapper()
 	
 	if not os.path.isfile(FUSEBMC_INSTRUMENT_EXE_PATH) and category_property == Property.cover_branches:
 		print("FuSeBMC_inustrument cannot be found..")
 		#exit(1)
-	result = verify(strategy, category_property, False)
+	result = verify(FuSeBMCParams.strategy, category_property, False)
 	#print(get_result_string(result))
 	print(result)
 	exit(0)
 	
 
 elif category_property in [Property.memsafety ,Property.overflow, Property.unreach_call,Property.termination, Property.memcleanup]:
+	MakeFolderEmptyORCreate(FuSeBMCParams.INSTRUMENT_Output_Dir)
 	
-	# ESBMC default commands: this is the same for : memory, overflow , reach, termination
-	esbmc_dargs = "--no-div-by-zero-check --force-malloc-success --state-hashing "
-	esbmc_dargs += "--no-align-check --k-step 2 --floatbv --unlimited-k-steps "
-	esbmc_dargs += "--no-por --context-bound-step 5 --max-context-bound 15 "
-	if concurrency:
-		esbmc_dargs += "--incremental-cb --context-bound-step 5 "
-		esbmc_dargs += "--unwind 8 "
-		esbmc_dargs += "--no-slice " # TODO: Witness validation is only working without slicing
-		# NOTE: max-context-bound and no-por are already in the default params
-	
-	MakeFolderEmptyORCreate(INSTRUMENT_Output_Dir)
-	MakeFolderEmptyORCreate(TestSuite_Dir)
-	WriteMetaDataFromWrapper()
+	#MakeFolderEmptyORCreate(FuSeBMCParams.TestSuite_Dir)
+	#WriteMetaDataFromWrapper()
 	#
-	result = verify(strategy, category_property, False)
+	result = verify(FuSeBMCParams.strategy, category_property, False)
 	print (get_result_string(result))
 	exit(0)
 else:
