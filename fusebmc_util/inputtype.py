@@ -18,6 +18,8 @@ class InputType:
 	_double = 12
 	_bool = 13
 	_string = 14
+	_int128 = 15
+	_uint128 = 16
 	
 
 	@staticmethod
@@ -44,6 +46,9 @@ class InputType:
 		if func == '__VERIFIER_nondet_double': return InputType._double
 		if func == '__VERIFIER_nondet_bool': return InputType._bool
 		if func == '__VERIFIER_nondet_string': return InputType._string
+		if func == '__VERIFIER_nondet_uint128': return InputType._uint128
+		if func == '__VERIFIER_nondet_int128': return InputType._int128
+		
 		if IS_DEBUG:
 			print(TColors.FAIL,'func:', func , 'has no type...',TColors.ENDC)
 			sys.exit(0)
@@ -65,6 +70,8 @@ class InputType:
 		if inputType == InputType._double: return 'double'
 		if inputType == InputType._bool : return '_Bool'
 		if inputType == InputType._string : return 'string'
+		if inputType == InputType._int128 : return '__int128'
+		if inputType == InputType._uint128 : return 'unsigned __int128'
 
 	@staticmethod
 	def GeSizeForDataType(inputType,p_arch):
@@ -86,6 +93,8 @@ class InputType:
 		if inputType == InputType._float : return 4
 		if inputType == InputType._double: return 8
 		if inputType == InputType._bool : return 1
+		if inputType == InputType._int128 : return 16
+		if inputType == InputType._uint128 : return 16
 		if inputType == InputType._string :
 			if IS_DEBUG:
 				print(TColors.FAIL,'dont call GeSizeForDataType for String..',TColors.ENDC)
@@ -98,5 +107,5 @@ class InputType:
 	def IsUnSigned(inputType):
 		return inputType == InputType._uchar or inputType == InputType._uint \
 			or inputType == InputType._ushort or inputType == InputType._ulong \
-			or inputType == InputType._ulonglong
+			or inputType == InputType._ulonglong or inputType == InputType._uint128
 

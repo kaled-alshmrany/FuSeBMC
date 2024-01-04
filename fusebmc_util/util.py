@@ -8,7 +8,7 @@ import struct
 from datetime import datetime
 import traceback
 import argparse
-
+from decimal import Decimal
 from .consts import *
 from .inputtype import InputType
 from .tcolors import TColors
@@ -75,7 +75,9 @@ class Property:
 	memcleanup = 5
 	cover_branches = 6
 	cover_error_call = 7
-def parse_result(the_output, prop):	
+	no_data_race = 8
+
+def parse_result(the_output, prop):
 	# Parse output
 	#if prop == Property.cover_error_call or prop == Property.cover_branches:
 	#	raise Exception("Don't use parse_result for cover_error_call, cover_branches.!!")
@@ -142,13 +144,30 @@ def parse_result(the_output, prop):
 	return Result.unknown
 
 def get_result_string(the_result):
+	if the_result == Result.fail_memcleanup: return "FALSE_MEMCLEANUP"
+	if the_result == Result.fail_memtrack: return "FALSE_MEMTRACK"
+	if the_result == Result.fail_free: return "FALSE_FREE"
+	if the_result == Result.fail_deref: return "FALSE_DEREF"
+	if the_result == Result.fail_overflow: return "FALSE_OVERFLOW"
+	if the_result == Result.fail_reach: return "FALSE_REACH"
+	if the_result == Result.fail_termination: return "FALSE_TERMINATION"
+	if the_result == Result.success: return "TRUE"
+	if the_result == Result.err_timeout: return "Timed out"
+	if the_result == Result.err_unwinding_assertion: return "Unknown"
+	if the_result == Result.err_memout: return "Unknown"
+	if the_result == Result.unknown: return "Unknown"
+	exit(0)
+'''
+def get_result_string(the_result):
 	# TODO: What is the output
-	if the_result == Result.fail_cover_error_call: return "FAIL_COVER_ERROR_CALL"	
+	if the_result == Result.fail_cover_error_call: return "FAIL_COVER_ERROR_CALL"
 	if the_result == Result.fail_cover_branches: return "FAIL_COVER_BRANCHES"
 	if the_result == Result.fail_memcleanup: return "FALSE_MEMCLEANUP"
+	
 	if the_result == Result.fail_memtrack: return "Unknown" #return "FALSE_MEMTRACK"
 	if the_result == Result.fail_free: return "Unknown" #return "FALSE_FREE"
 	if the_result == Result.fail_deref: return "Unknown" #return "FALSE_DEREF"
+	
 	if the_result == Result.fail_overflow: return "FALSE_OVERFLOW"
 	if the_result == Result.fail_reach: return "FALSE_REACH"
 	if the_result == Result.fail_termination: return "FALSE_TERMINATION"
@@ -158,6 +177,7 @@ def get_result_string(the_result):
 	if the_result == Result.err_memout: return "Unknown"
 	if the_result == Result.unknown: return "Unknown"
 	exit(0)
+'''
 '''
 def get_result_string(the_result):
 	if the_result == Result.fail_memcleanup: return "FALSE_MEMCLEANUP"
@@ -200,8 +220,10 @@ def GetPropertyFromFile(property_file):
 	#	category_property = Property.unreach_call
 	elif "COVER( init(main()), FQL(COVER EDGES(@DECISIONEDGE)) )" in property_file_content:
 		return Property.cover_branches,property_file_content
+	elif "CHECK( init(main()), LTL(G ! data-race) )" in property_file_content:
+		return Property.no_data_race, property_file_content
 	else:
-		print ("Unsupported Property") 
+		print ("Unsupported Property",property_file)
 		return None,property_file_content
 
 def getLinesCountInFile(pFilePath):
@@ -225,7 +247,7 @@ def GetSH1ForFile(fil):
 	return ''
 #https://stackoverflow.com/questions/10501247/best-way-to-generate-random-file-names-in-python?lq=1
 def GenerateRondomFileName():
-	return ''.join(random.choice(string.ascii_letters) for _ in range(25))
+	return ''.join(random.choice(string.ascii_letters) for _ in range(5))
 
 '''
 def AddFileToArchive(full_file_name, zip_file_name):
@@ -287,14 +309,17 @@ def GetGoalListFromFile(file_path):
 	return lstGoalsInFile
 
 def HandleException(ex, msg = '' ,mustExit = False):
+	import traceback
+	traceback.print_exc()
 	now_s = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 	if IS_DEBUG:
 		print(TColors.FAIL)
 		if msg != '' : print(msg)
 		print(ex)
 		exc_type, exc_obj, exc_tb = sys.exc_info()
-		fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-		print(exc_type, fname, exc_tb.tb_lineno)
+		if exc_tb is not None:
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+			print(exc_type, fname, exc_tb.tb_lineno)
 		print(TColors.ENDC)
 		with open('./errorlog.log','a') as f:
 			f.write(now_s+'\n')
@@ -302,9 +327,11 @@ def HandleException(ex, msg = '' ,mustExit = False):
 			f.write(' '.join(sys.argv[0:])+'\n')
 			if msg != '' : f.write(msg+'\n')
 			f.write(str(ex)+'\n')
-			f.write(str(exc_type)+' '+ fname + ' ' + str(exc_tb.tb_lineno)+'\n')
+			if exc_tb is not None:
+				f.write(str(exc_type)+' '+ fname + ' ' + str(exc_tb.tb_lineno)+'\n')
 			f.write('******************************************\n')
 		if mustExit : exit(1)
+	#exit(0)
 
 def WriteListInSeedFile(lst,seed_filename,numOfBytes = 4, p_signed = True):
 	with open (seed_filename,'wb') as seed_f:
@@ -331,16 +358,26 @@ def WriteTestcaseInSeedFile(assump_lst,seed_filename,arch):
 						seed_f.write((int(nonDeterministicCall.value)).to_bytes(bytesNum, byteorder=sys.byteorder, signed=is_signed))
 					except Exception as ex:
 						HandleException(ex,'value='+str(nonDeterministicCall.value)+' bytesNum='+str(bytesNum),False)
-						seed_f.write((int(0)).to_bytes(bytesNum, byteorder=sys.byteorder, signed=is_signed))
+						try:
+							seed_f.write((int(nonDeterministicCall.value)).to_bytes(bytesNum, byteorder=sys.byteorder, signed=False))
+						except Exception as ex:
+							seed_f.write((int(0)).to_bytes(bytesNum, byteorder=sys.byteorder, signed=is_signed))
 				elif (isfloat(nonDeterministicCall.value)):
 					try:
+						
 						bytes_per_component = bytesNum / 4
 						if bytes_per_component != 1 or bytes_per_component != 2 : bytes_per_component = 2
 						for byte in struct.pack('!f' , float(nonDeterministicCall.value)):
-							seed_f.write((int(byte)).to_bytes(bytes_per_component, byteorder=sys.byteorder, signed=True))
+							seed_f.write((int(byte)).to_bytes(bytes_per_component, byteorder=sys.byteorder, signed=False))
+						
 					except Exception as ex:
-						seed_f.write((int(0)).to_bytes(bytesNum, byteorder=sys.byteorder, signed=is_signed))
-						HandleException(ex,'write to seed',False)
+						HandleException(ex,f"write to seed, val={nonDeterministicCall.value}",False)
+						try:
+							b=struct.pack('@d' , Decimal(nonDeterministicCall.value))
+							seed_f.write(b)
+						except Exception as ex:
+							seed_f.write((int(0)).to_bytes(bytesNum, byteorder=sys.byteorder, signed=is_signed))
+						
 				else:
 					input_str = nonDeterministicCall.value + ''
 					if input_str and not isinstance(input_str , bytes): input_str = input_str.encode()
@@ -352,19 +389,117 @@ def WriteTestcaseInSeedFile(assump_lst,seed_filename,arch):
 	except Exception as ex2: HandleException(ex2,'write to seed',False)
 	return testcaseSize
 
-def getArgs():
+def getArgs(pCmdLine = None):
+	def check_positive(value: int)-> int:
+		ivalue = int(value)
+		if ivalue <= 0:
+			raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
+		return ivalue
+	def check_max_k_step(value: int)-> int:
+		ivalue = int(value)
+		if ivalue < -2:
+			raise argparse.ArgumentTypeError("%s is an invalid value: [-1:unlimited; -2;default; else the givien value]" % value)
+		return ivalue
 	# Options
 	parser = argparse.ArgumentParser()
-	parser.add_argument("-a", "--arch", help="Either 32 or 64 bits",type=int, choices=[32, 64], default=32)
+	parser.add_argument("-a", "--arch", help="Either 32 or 64 bits",type=int, choices=[32, 64], default=FuSeBMCParams.arch)
 	parser.add_argument("-v", "--version",help="Prints ESBMC's version", action='store_true')
 	parser.add_argument("-p", "--propertyfile", help="Path to the property file")
 	parser.add_argument("benchmark", nargs='?', help="Path to the benchmark")
 	#parser.add_argument("-s", "--strategy", help="ESBMC's strategy",choices=["kinduction", "falsi", "incr"], default="incr")
 	#parser.add_argument("-z", "--zip_path", help="the tesuite Zip file to generate", default=None)
-	parser.add_argument("-o", "--output", help="the output fir of this run", default=None)
-	parser.add_argument("-t", "--timeout", help="time out seconds",type=float)
+	parser.add_argument("-o", "--output", help="the output for of this run", default=None)
+	#parser.add_argument("-t", "--timeout", help="time out seconds",type=float)
+	parser.add_argument('--timeout', dest='time_out_s', help="Timeout in seconds", type=int, default=FuSeBMCParams.time_out_s)
 	parser.add_argument("-s", "--strategy", help="ESBMC's strategy", choices=["kinduction", "falsi", "incr", "fixed"], default="fixed")
 	parser.add_argument("-c", "--concurrency", help="Set concurrency flags", action='store_true')
-	args = parser.parse_args()
+	parser.add_argument("--run-testcov", dest='RunTestCov', help="Run TestCov Verifier", action='store_true', default=FuSeBMCParams.RunTestCov)
+	parser.add_argument("--verbose", dest='SHOW_ME_OUTPUT', help="Show messages verbose (default: False)", action='store_true', default=FuSeBMCParams.SHOW_ME_OUTPUT)
+	parser.add_argument("--result-dir", dest='ResultDir', help="Set the results output directory", default=FuSeBMCParams.ResultDir)
+	parser.add_argument("--encoding", dest='encoding', help="ESBMC's encoding", choices=["floatbv", "fixedbv"], default="floatbv")
+	parser.add_argument("--solver",dest='solver', help="ESBMC's solver", choices=["boolector", "z3"], default="boolector")
+	
+	
+	parser.add_argument("--fuzzer-cover-branches-1", dest='FuzzerCoverBranches1', help="Enable Fuzzer 1 in CoverBranches", choices=["0", "1"], default=FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_ENABLED)
+	parser.add_argument('--fuzzer-cover-branches-1-time', dest='FuzzerCoverBranches1Time', help="Time of Fuzzer 1 in CoverBranches", type=int, default=FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_TIMEOUT)
+	
+	parser.add_argument("--fuzzer-cover-branches-2", dest='FuzzerCoverBranches2', help="Enable Fuzzer 2 in CoverBranches", choices=["0", "1"], default=FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_RUN2_ENABLED)
+	parser.add_argument('--fuzzer-cover-branches-2-time', dest='FuzzerCoverBranches2Time', help="Time of Fuzzer 2 in CoverBranches", type=int, default=FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_TIMEOUT_2)
+	
+	parser.add_argument('--goal-tracer', dest='GoalTracer', help="Enable GoalTracer in CoverBranches", choices=["0", "1"], default=FuSeBMCParams.FuSeBMC_GoalTracer_ENABLED)
+	parser.add_argument('--goal-sorting', dest='GoalSorting', help="GoalSorting in CoverBrances: "+
+						str(GoalSorting.DEPTH_THEN_TYPE)+': ' + GoalSorting.toString(GoalSorting.DEPTH_THEN_TYPE)+', '+
+						str(GoalSorting.TYPE_THEN_DEPTH)+': ' + GoalSorting.toString(GoalSorting.TYPE_THEN_DEPTH)+', '+
+						str(GoalSorting.SEQUENTIAL)+': ' + GoalSorting.toString(GoalSorting.SEQUENTIAL),
+						type=int,
+					choices=[GoalSorting.DEPTH_THEN_TYPE, GoalSorting.TYPE_THEN_DEPTH, GoalSorting.SEQUENTIAL], default=FuSeBMCParams.goalSorting)
+	
+	parser.add_argument("--global-depth", dest='GlobalDepth', help='Use Global depth of goals instead of local depth', choices=["0", "1"], default=FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_GLOBAL_DEPTH)
+	parser.add_argument('--cover-branches-num-testcases-to-run-afl', dest='FuSeBMCFuzzerLib_COVERBRANCHES_NUM_OF_GENERATED_TESTCASES_TO_RUN_AFL', help="Number of Testcases to Run AFL in CoverBranches", \
+					type=check_positive, default=FuSeBMCParams.FuSeBMCFuzzerLib_COVERBRANCHES_NUM_OF_GENERATED_TESTCASES_TO_RUN_AFL)
+	parser.add_argument("--fuzzer-error-call-1", dest='FuSeBMCFuzzerLib_ERRORCALL_ENABLED', help='Enable Fuzzer 1 in Error-Call', choices=["0", "1"], default=FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_ENABLED)
+	parser.add_argument('--fuzzer-error-call-1-time', dest='FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT', help="Time of Fuzzer 1 in Error-Call", type=int, default=FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT)
+	parser.add_argument("--fuzzer-error-call-2", dest='FuSeBMCFuzzerLib_ERRORCALL_RUN2_ENABLED', help='Enable Fuzzer 2 in Error-Call', choices=["0", "1"], default=FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_RUN2_ENABLED)
+	parser.add_argument('--fuzzer-error-call-2-time', dest='FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT_2', help="Time of Fuzzer 2 in Error-Call", type=int, default=FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_TIMEOUT_2)
+	parser.add_argument('--esbmc-error-call-run-1-time', dest='ERRORCALL_ESBMC_RUN1_TIMEOUT', help="Time of ESBMC Run 1 in Error-Call", type=int, default=FuSeBMCParams.ERRORCALL_ESBMC_RUN1_TIMEOUT)
+	parser.add_argument('--seeds-num-fuzzer1-error-call', dest='FuSeBMCFuzzerLib_ERRORCALL_SEEDGEN_SEEDS_NUM', help="Number of Seeds to be generated for Fuzzer 1 in Error-Call", type=int, default=FuSeBMCParams.FuSeBMCFuzzerLib_ERRORCALL_SEEDGEN_SEEDS_NUM)
+	parser.add_argument('--run-esbmc-twice-error-call', dest='ERRORCALL_RUNTWICE_ENABLED', help='Run ESBMC Twice in Error-Call', choices=["0", "1"], default=FuSeBMCParams.ERRORCALL_RUNTWICE_ENABLED)
+	parser.add_argument('--handle-infinite-while-loop-error-call', dest='ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED', help='Handle Infinite-while loops in Error-Call', choices=["0", "1"], default=FuSeBMCParams.ERRORCALL_HANDLE_INFINITE_WHILE_LOOP_ENABLED)
+	parser.add_argument('--error-call-infinite-while-loop-increment-time', dest='ERRORCALL_INFINITE_WHILE_TIME_INCREMENT', help="Extra Time for Infinite-while loops in Error-Call", type=int, default=FuSeBMCParams.ERRORCALL_INFINITE_WHILE_TIME_INCREMENT)
+	
+	parser.add_argument('--ml', dest='ML', help="Machine Learning operation: "+
+						str(Feature.NONE)+': nothing to do, ' +
+						str(Feature.ExtractFeaturesOnly)+': Only extaract features from source code, '+
+						str(Feature.PredicateParams)+': extract features and predicate FuSeBMC parameters values ' ,
+						type=int,
+						choices=[Feature.NONE, Feature.ExtractFeaturesOnly, Feature.PredicateParams], default=FuSeBMCParams.ML)
+	parser.add_argument('--ml-model', dest='MLModel', help="Machine Learning model: "+
+						str(ModelType.DTC)+': Decision Tree Classifier, ' +
+						str(ModelType.SVC)+': C-Support Vector Classification, '+
+						str(ModelType.NRR)+': Multi-layer Perceptron regressor ' +
+						str(ModelType.MULTI_MODEL)+': Multi.models dtc then svc then nnr ',
+						type=int,
+						choices=[ModelType.DTC, ModelType.SVC, ModelType.NRR, ModelType.MULTI_MODEL],
+						default=FuSeBMCParams.MLModel)
+	parser.add_argument('--handle-infinite-while-loop-cover-branches', dest='COVERBRANCHES_HANDLE_INFINITE_WHILE_LOOP_ENABLED', help='Handle Infinite-while loops in Cover-Branches', choices=["0", "1"], default=FuSeBMCParams.COVERBRANCHES_HANDLE_INFINITE_WHILE_LOOP_ENABLED)
+	parser.add_argument('--cover-branches-infinite-while-loop-increment-time', dest='COVERBRANCHES_INFINITE_WHILE_TIME_INCREMENT', help="Extra Time for Infinite-while loops in Cover-Branches", type=int, default=FuSeBMCParams.COVERBRANCHES_INFINITE_WHILE_TIME_INCREMENT)
+	
+	parser.add_argument('--cover-branches-selective-inputs-enable', dest='COVERBRANCHES_SELECTIVE_INPUTS_ENABLED', help='Extract Selective Inputs in Cover-Branches', choices=["0", "1"], default=FuSeBMCParams.COVERBRANCHES_SELECTIVE_INPUTS_ENABLED)
+	parser.add_argument('--cover-branches-selective-inputs-increment-time', dest='COVERBRANCHES_SELECTIVE_INPUTS_TIME_INCREMENT', help="Extra Time for Selective Inputs in Cover-Branches", type=int, default=FuSeBMCParams.COVERBRANCHES_SELECTIVE_INPUTS_TIME_INCREMENT)
+	
+	parser.add_argument('--error-call-selective-inputs-enable', dest='ERRORCALL_SELECTIVE_INPUTS_ENABLED', help='Extract Selective Inputs in ErrorCall', choices=["0", "1"], default=FuSeBMCParams.ERRORCALL_SELECTIVE_INPUTS_ENABLED)
+	parser.add_argument('--error-call-selective-inputs-increment-time', dest='ERRORCALL_SELECTIVE_INPUTS_TIME_INCREMENT', help="Extra Time for Selective Inputs in Error-Call", type=int, default=FuSeBMCParams.ERRORCALL_SELECTIVE_INPUTS_TIME_INCREMENT)
+	
+	parser.add_argument('--max-k-step', dest='MAX_K_STEP', help="the value of '--max-k-step' parameter in ESBMC.", \
+					type=int, default=FuSeBMCParams.MAX_K_STEP)
+	parser.add_argument('--unwind', dest='UNWIND', help="the value of '--unwind' parameter in ESBMC.", \
+					type=int, default=FuSeBMCParams.UNWIND)
+	parser.add_argument('--k-step', dest='k_step', help="the value of '--k-step' parameter in ESBMC.", \
+					type=int, default=FuSeBMCParams.k_step)
+	parser.add_argument('--context-bound', dest='contextBound', help="the value of '--context-bound' parameter in ESBMC.", \
+					type=int, default=FuSeBMCParams.contextBound)
+	parser.add_argument('--context-bound-step', dest='contextBoundStep', help="the value of '--context-bound-step' parameter in ESBMC.", \
+					type=int, default=FuSeBMCParams.contextBoundStep)
+	parser.add_argument('--max-context-bound', dest='maxContextBound', help="the value of '--max-context-bound' parameter in ESBMC.", \
+					type=int, default=FuSeBMCParams.maxContextBound)
+	parser.add_argument('--max-inductive-step', dest='maxInductiveStep', help="the value of '--max-inductive-step' parameter in ESBMC.", \
+					type=int, default=FuSeBMCParams.maxInductiveStep)
+	parser.add_argument("--add-symex-value-sets", dest='addSymexValueSets', help='enable/disable --add-symex-value-sets parmameter in ESBMC', action='store_true', default=FuSeBMCParams.addSymexValueSets)
+	
+	if pCmdLine is None:
+		args = parser.parse_args()
+	else:
+		args = parser.parse_args(pCmdLine)
 	return args
+
+def parseStrAsBool(val)->bool:
+	if isinstance(val, str):
+		if val == "1" :
+			return True
+		if val == "0":
+			return False
+	elif isinstance(val, bool):
+		return val
+	else:
+		sys.exit(f"{val} has type = {type(val)} is invalid.")
 

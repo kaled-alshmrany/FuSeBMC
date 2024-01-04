@@ -6,18 +6,18 @@ import subprocess
 from .consts import *
 from .tcolors import TColors
 from.util import *
-from .nonblockingstreamreader  import NonBlockingStreamReader
+from .nonblockingstreamreader import NonBlockingStreamReader
 
 #TESTCOV_EXE = './val_testcov/testcov/bin/testcov'
-TESTCOV_EXE ='./val_testcov_3.5/testcov/bin/testcov'
-#TESTCOV_EXE = './test-suite-validator-master/bin/testcov'
+#TESTCOV_EXE ='./val_testcov_3.5/testcov/bin/testcov'
+TESTCOV_EXE = './test-suite-validator/bin/testcov'
 #TESTCOV_PARAMS = ['--no-runexec','--use-gcov','-64']
 #TESTCOV_PARAMS= ['--no-runexec','--use-gcov','--cpu-cores','0', '--verbose', '--no-plots','--reduction','BY_ORDER','--reduction-output','test-suite']
 #TESTCOV_PARAMS= ['--no-runexec', '--no-isolation', '--memlimit', '6GB', '--timelimit-per-run', '3', '--cpu-cores', '0', '--verbose', '--no-plots','--reduction', 'BY_ORDER','--reduction-output','test-suite']
-TESTCOV_PARAMS = ['--no-isolation','--memlimit', '6GB','--timelimit-per-run', '100', '--cpu-cores', '0','--verbose','--no-plots','--reduction', 'BY_ORDER', '--reduction-output','test-suite']
+TESTCOV_PARAMS = ['--no-isolation','--memlimit', '6GB','--timelimit-per-run', '100', '--cpu-cores', '0','--no-plots','--reduction', 'BY_ORDER', '--reduction-output','test-suite']#'--verbose'
 
 
-def RunTestCov(p_benchmark,p_property_file,p_arch,p_dir):
+def RunTestCov(p_benchmark,p_property_file,p_arch,p_dir,isVerbose = False):
 	'''
 	p_dir: must contain 'test-suite' dir; will be used as output dir.
 	'''
@@ -30,6 +30,7 @@ def RunTestCov(p_benchmark,p_property_file,p_arch,p_dir):
 	cov_test_exe_abs=os.path.abspath(TESTCOV_EXE)
 	cov_test_cmd =[cov_test_exe_abs]
 	cov_test_cmd.extend(TESTCOV_PARAMS)
+	if isVerbose : cov_test_cmd.append('--verbose')
 	test_suite_dir_zip_abs=os.path.abspath(zipDir_l)
 	property_file_abs = os.path.abspath(p_property_file)
 	sourceForTestCov = p_dir + '/' + os.path.basename(p_benchmark)
