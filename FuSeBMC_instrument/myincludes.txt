@@ -1,5 +1,5 @@
 # This is comment.
-#/home/kaled/clang_base/lib/clang/6.0.0/include
+#/home/hosam/clang_base/lib/clang/6.0.0/include
 /usr/include
 #/usr/lib/llvm-10/include
 #/usr/include/linux
