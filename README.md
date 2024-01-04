@@ -1,15 +1,15 @@
-# FuSeBMC v4: Smart Seed Generation for Hybrid Fuzzing
-FuSeBMC is a test generator for finding security vulnerabilities in C programs. In ealair work (version 3), we described a previous version that incrementally injected labels to guide Bounded Model Checking (BMC) and Evolutionary Fuzzing engines to produce test cases for code coverage and bug finding. Today, we introduce an improved version of FuSeBMC that utilizes both engines to produce smart seeds. First, the engines run with a short time limit on a lightly instrumented version of the program to produce the seeds. The BMC engine is particularly useful in producing seeds that can pass through complex mathematical guards. Then, FuSeBMC runs its engines with extended time limits using the smart seeds created in the previous round. FuSeBMC manages this process in two main ways using its Tracer subsystem. Firstly, it uses shared memory to record the labels covered by each test case. Secondly, it evaluates test cases, and those of high impact are turned into seeds for subsequent test fuzzing. We evaluated FuSeBMC by participating in Test-Comp 2022 to test the ability of the tool in two categories of the competition, which are code coverage and bug detection. The Test-Comp 2022 results show that we significantly increased our code coverage score from last year, outperforming all tools in all categories. During years (2021 & 2022), FuSeBMC achieved 6 awards (4 Gold🥇 Medals, 1 Silver🥈 Medal, 1 Bronze🥉 Medal).
+# FuSeBMC AI: Acceleration of Hybrid Approach through Machine Learning
+FuSeBMC-AI is a test generation tool grounded in machine learning techniques. FuSeBMC-AI extracts various features from the program under examination and employs a support vector and neural network to predict a hybrid approach’s optimal configuration. Our current research specializes in Software Testing and utilizes BMC and Fuzzing as back-end verification engines. FuSeBMC-AI exhibits enhancements in some subcategories in Test-Comp 2024, when compared to the default configuration of FuSeBMC, concurrently achieving a 3% reduction in resource utilization as shown in the results of Test-Comp 2024 experiments.
 
 
-FuSeBMC v4 files:
-https://gitlab.com/sosy-lab/test-comp/archives-2022/-/raw/main/2022/FuSeBMC.zip?inline=false
+FuSeBMC AI files:
+[https://gitlab.com/sosy-lab/test-comp/archives-2022/-/raw/main/2022/FuSeBMC.zip?inline=false](https://zenodo.org/records/10199336)
 
 The results of FuSeBMC in Test-Comp 2022 are available in this link:
-https://test-comp.sosy-lab.org/2022/results/results-verified/
+https://test-comp.sosy-lab.org/2024/results/results-verified/
 
 All files to reproducing Test-Comp Results:
-https://test-comp.sosy-lab.org/2021/systems.php
+https://test-comp.sosy-lab.org/2024/systems.php
 
 Presentation and tutorial:
 https://drive.google.com/drive/folders/1XMnNkAGP1e6ZuoygBTEaanM80I_QRe_g?usp=sharing
@@ -118,8 +118,6 @@ To reproduce Test-Comp 2021' results, follow the instruction in the file "instru
 
 * The output of the competition "Test-Comp21" will store in two folders "results" and "results-verified".
 <br /><br />
-
-
 
 
 # Acknowledgments
