@@ -8,7 +8,7 @@ FuSeBMC AI files:
 The results of FuSeBMC in Test-Comp 2022 are available in this link:
 https://test-comp.sosy-lab.org/2024/results/results-verified/
 
-All files to reproducing Test-Comp Results:
+All files to reproduce Test-Comp Results:
 https://test-comp.sosy-lab.org/2024/systems.php
 
 Presentation and tutorial:
@@ -27,7 +27,7 @@ For more details, we recommend to read our published papers:
 
   <br /><br />
 
- * Requrments to use the tool:
+ * Requirements to use the tool:
  
         ESBMC 6.4 (included in zip file)
  
@@ -77,7 +77,7 @@ If you want to run just the instrument
 <br /><br />
 
 
-* In the folder Examples, you can find some C/C++ examples that we used in terms of testing the tool. I found useful to share it with you.
+* In the folder Examples, you can find some C/C++ examples that we used in terms of testing the tool. I found it useful to share it with you.
 
 Note: all the outputs in the folders are based on the experiment on the file "rangesum 10.i" with the property coverage-branches.
 
@@ -116,10 +116,10 @@ To reproduce Test-Comp 2021' results, follow the instruction in the file "instru
       2- Folder called "test-suite.zip" to be used for the tool TestCov.<br />
 
 
-* The output of the competition "Test-Comp21" will store in two folders "results" and "results-verified".
+* The output of the competition "Test-Comp24" will be stored in two folders "results" and "results-verified".
 <br /><br />
 
 
 # Acknowledgments
 
-The Institute of Public Administration - IPA - Saudi Arabia (https://www.ipa.edu.sa/en-us/Pages/default.aspx) and the ScorCH project (https://lnkd.in/eSUZFwT) support the FuSeBMC development.
+The Institute of Public Administration - IPA - Saudi Arabia (https://www.ipa.edu.sa/en-us/Pages/default.aspx), the ScorCH project (https://lnkd.in/eSUZFwT) and Software Escrow Solutions (SES) (https://www.ses-escrow.co.uk/) support the FuSeBMC development  
