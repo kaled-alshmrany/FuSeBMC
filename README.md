@@ -85,7 +85,7 @@ Note: all the outputs in the folders are based on the experiment on the file "ra
 <br /><br />
 If you want to run the tool on the benchmark of the competition "Test-Comp21", you need to put the files "competitions files" in the same directory. However, you need to run FuSeBMC on Benchexec provided by Test-Comp 21. In order to participate at Test-Comp, a tool-info module in the BenchExec repository is necessary. The experiments were conducted on the server of Test-Comp 2021. Each run was limited to 8 processing units, 15 GB of memory, and 15 min of CPU time. The test suite validation was limited to 2 processing units, 7 GB of memory, and 5 min of CPU time. Also, the machine had the following specification of the test node was: one Intel Xeon E3-1230 v5 CPU, with 8 processing units each, a frequency of 3.4 GHz, 33 GB of RAM, and a GNU/Linux operating system(x86-64-Linux, Ubuntu 20.04 with Linux kernel 5.4).
 
-1- ESBMC from https://github.com/esbmc/esbmc/releases/latest/download/ESBMC-Linux.sh
+1- ESBMC from https://github.com/esbmc/esbmc/releases/download/v7.5/esbmc-linux.zip
 
 2- TestCove from https://gitlab.com/sosy-lab/test-comp/archives-2020/raw/testcomp20/2020/val_testcov.zip
 
